@@ -253,8 +253,8 @@ export function ChatView() {
         role: 'agent',
         type: 'text',
         text: live
-          ? "I couldn't reach my brain just now — give it a moment and send that again."
-          : "I need your Anthropic API key before I can understand messages. Add it in Menu → Settings → Penny AI, then I'll handle this properly. (You can still add things manually with the + button.)",
+          ? "⚠️ Penny is offline — I couldn't reach the Claude API just now. Check your connection and send that again."
+          : "⚠️ Penny is offline. I work entirely through the Claude API — add your Anthropic key in Menu → Settings → Penny AI to switch me on. (You can still add things manually with the + button.)",
       });
       return;
     }
@@ -427,12 +427,12 @@ export function ChatView() {
           <div className="h-display" style={{ fontSize: 17, lineHeight: 1.15 }}>
             Penny
           </div>
-          <div style={{ fontSize: 11.5, color: thinking ? 'var(--amber-deep)' : 'var(--sage-deep)', fontWeight: 600, transition: 'color 0.3s' }}>
-            {thinking ? 'thinking…' : 'your money companion'}
+          <div style={{ fontSize: 11.5, color: thinking ? 'var(--amber-deep)' : !live ? 'var(--coral-deep)' : 'var(--sage-deep)', fontWeight: 600, transition: 'color 0.3s' }}>
+            {thinking ? 'thinking…' : live ? 'your money companion' : 'offline — add your API key in Settings'}
           </div>
         </div>
-        <span className="eyebrow" style={{ fontSize: 9.5, background: 'var(--accent-tint)', color: 'var(--accent-deep)', padding: '4px 9px', borderRadius: 999 }}>
-          {live ? 'haiku live' : 'demo mode'}
+        <span className="eyebrow" style={{ fontSize: 9.5, background: live ? 'var(--accent-tint)' : 'var(--coral-tint)', color: live ? 'var(--accent-deep)' : 'var(--coral-deep)', padding: '4px 9px', borderRadius: 999 }}>
+          {live ? 'live' : 'offline'}
         </span>
       </div>
 
