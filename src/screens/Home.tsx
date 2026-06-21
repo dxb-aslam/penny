@@ -2,7 +2,6 @@
 import { useMemo, useState } from 'react';
 import { BUDGET_MO, LS, catLabel, catStyle, dayLabel, fmt } from '../lib/data';
 import { categoryBreakdown } from '../lib/ledger';
-import { notificationsFor } from '../lib/notifications';
 import type { Txn } from '../lib/types';
 import { Icons, CatIcon } from '../components/Icons';
 import type { IconName } from '../components/Icons';
@@ -58,13 +57,6 @@ export function HomeScreen() {
   const toggleQuick = (id: string) => saveQuick(quick.includes(id) ? quick.filter((x) => x !== id) : [...quick, id]);
   const quickItems = quick.map((id) => QUICK_CATALOG.find((q) => q.id === id)).filter(Boolean) as QuickItem[];
 
-  // ---- notifications (bell badge) ----
-  const notifCount = useMemo(
-    () => notificationsFor(app).length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [app.txns, app.accounts, app.emis, app.subs, app.currency, app.savingsAccountId],
-  );
-
   // ---- last 10 activity ----
   const recentGroups = useMemo(() => {
     const sorted = [...app.txns].sort((a, b) => b.ts - a.ts).slice(0, 10);
@@ -88,18 +80,8 @@ export function HomeScreen() {
             <Icons.pencil size={14} color="var(--muted)" />
           </div>
         </div>
-        <button
-          onClick={() => app.openNotifications()}
-          aria-label="Notifications"
-          style={{ position: 'relative', width: 40, height: 40, borderRadius: 20, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-soft)', boxShadow: 'var(--shadow-card)' }}
-        >
-          <Icons.bell size={18} />
-          {notifCount > 0 && (
-            <span style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, padding: '0 4px', borderRadius: 9, background: 'var(--coral)', color: '#fff', border: '2px solid var(--surface)', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {notifCount}
-            </span>
-          )}
-        </button>
+        {/* Notifications bell hidden for now — alerts will return once they're driven
+            by meaningful real-data triggers rather than near-empty-state noise. */}
         <button
           onClick={() => app.openProfile()}
           aria-label="Profile"
