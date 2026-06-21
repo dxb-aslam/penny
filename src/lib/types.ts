@@ -295,6 +295,36 @@ export interface Plan {
   steps: string[];
 }
 
+// ---- v2 agent contracts (Penny Agent v2 spec) ----
+export type Route = 'lean' | 'full';
+export type AgentPeriod = 'today' | 'week' | 'month' | 'last_month' | '3m' | 'year' | 'all';
+
+export interface LeanResult {
+  add: unknown[][];          // rows, positional per INPUT_COLUMNS[table]
+  reply: string | null;
+  more: boolean;
+  recurring?: unknown[][];   // P6 statement only
+}
+
+export type AgentState = 'await' | 'ask' | 'done' | 'close';
+export interface Op {
+  do: 'add' | 'set' | 'del' | 'get';
+  table: string;
+  values?: unknown[] | Record<string, unknown>;
+  where?: Record<string, unknown> & { period?: AgentPeriod; limit?: number };
+  agg?: { fn: 'sum' | 'count'; col?: string };
+  describe?: boolean;
+  confirm?: boolean;
+}
+export interface AgentEnvelope {
+  reply: string | null;
+  ops?: Op[];
+  state: AgentState;
+  cache_next?: boolean;
+  summary?: string | null;
+}
+export interface OpResult { ok: boolean; rows?: unknown[]; value?: number; error?: string; needsConfirm?: boolean; kind?: string; data?: unknown; }
+
 export type SuggestionAction = 'ledger' | 'money_map' | 'new_list' | 'watch' | 'none';
 export interface RawSuggestion {
   label: string;

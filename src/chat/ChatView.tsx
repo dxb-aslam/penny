@@ -1,20 +1,17 @@
 // Penny — chat view: the conversational logging surface (the core experience)
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, allAccounts } from '../lib/data';
-import { classify, engineTurn, isLive, parseReceipt, parseStatement } from '../lib/llm';
-import type { EngineQuery, EngineTurn } from '../lib/llm';
-import { logChat, logNote } from '../lib/diag';
-import { resolveAccount } from '../lib/data';
-import { applyFilters, normalizeFilters, summarize } from '../lib/ledger';
-import type { LedgerFilters } from '../lib/types';
-import { normalizeTracked } from '../lib/money';
-import { buildLegend } from '../lib/snapshot';
-import { applyCrud } from '../lib/schema';
+import { classify, isLive, localParse, parseReceipt, parseStatement } from '../lib/llm';
+import { logChat } from '../lib/diag';
+import { runAgent, type AgentMsg } from '../lib/agent/loop';
+import { makeAgentData } from '../lib/agent/appData';
+import { leanUserBlock, fullUserBlock } from '../lib/agent/context';
 import { captureImage, pickFile } from '../lib/media';
 import type { PickedFile, PickedImage } from '../lib/media';
-import type { Account, ParsedAccount, ParsedExpense, ParseResult } from '../lib/types';
+import type { ParsedAccount, ParsedExpense } from '../lib/types';
 import { AgentAvatar } from '../components/Avatar';
 import { Icons } from '../components/Icons';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useApp } from '../state/AppContext';
 import {
   AccountCard,
@@ -83,36 +80,12 @@ export function ChatView() {
   const [sheet, setSheet] = useState(false);
   const [live, setLive] = useState(false);
   const [pending, setPending] = useState<{ kind: 'image'; img: PickedImage } | { kind: 'file'; file: PickedFile } | null>(null);
+  const [confirmReq, setConfirmReq] = useState<{ msg: string; resolve: (v: boolean) => void } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const msgsRef = useRef<ChatMsg[]>(msgs);
   const lastExpenseRef = useRef<string | null>(null);
   const booted = useRef(false);
   const trailStartRef = useRef(0); // index into msgs where the current open trail begins (reset on close)
-
-  // Resolve Haiku's data queries against the user's real (merged) data.
-  const runQueries = useCallback((qs: EngineQuery[]): string => {
-    const periodOf = (f = ''): LedgerFilters['preset'] =>
-      /last_month/.test(f) ? 'last_month' : /this_month|month/.test(f) ? 'month' : /week/.test(f) ? 'week' : /year/.test(f) ? 'year' : /3m/.test(f) ? '3m' : 'all';
-    return qs.map((q) => {
-      const label = `${q.table}${q.filter ? ' ' + q.filter : ''}`;
-      if (q.table === 'transactions') {
-        const parts = (q.filter || '').split(/[,|]/).map((s) => s.trim());
-        const cat = parts.find((p) => p.startsWith('cat='))?.slice(4);
-        const acc = parts.find((p) => p.startsWith('account='))?.slice(8);
-        const f = normalizeFilters({ period: periodOf(q.filter), categories: cat ? [cat] : undefined, accounts: acc ? [acc] : undefined });
-        const rows = applyFilters(app.txns, f);
-        if (q.agg === 'count') return `${label} = ${rows.length} txns`;
-        if (q.agg === 'list') return `${label} = ${rows.slice(0, 15).map((t) => `${t.merchant} ${Math.round(t.amount)}`).join('; ') || 'none'}`;
-        const s = summarize(rows);
-        return `${label} = out ${Math.round(s.outAED)} AED, in ${Math.round(s.inAED)} AED (${rows.length} txns)`;
-      }
-      if (q.table === 'accounts') return `accounts = ${app.accounts.map((a) => `${a.name} ${Math.round(a.balance)}${a.creditLimit ? '/' + a.creditLimit : ''}`).join('; ')}`;
-      if (q.table === 'emis') return `emis = ${app.emis.map((e) => `${e.name} ${e.monthly}/mo (${e.monthsLeft}mo left)`).join('; ') || 'none'}`;
-      if (q.table === 'subs') return `subs = ${app.subs.map((s) => `${s.name} ${s.amount}`).join('; ') || 'none'}`;
-      if (q.table === 'tracked') return `tracked = ${app.tracked.filter((t) => t.status === 'open').map((t) => `${t.kind} ${t.title} ${t.amount}`).join('; ') || 'none'}`;
-      return `${label} = (unknown table)`;
-    }).join('\n');
-  }, [app.txns, app.accounts, app.emis, app.subs, app.tracked]);
 
   // keep a ref of the latest messages for event handlers (read outside render)
   useEffect(() => {
@@ -189,19 +162,6 @@ export function ChatView() {
     return push({ role: 'agent', type: 'text', text });
   }
 
-  // Sparing "Want me to…?" follow-up — render confirm chips only when Penny
-  // returned a genuinely useful next action.
-  async function maybeSuggest(out: { suggestion?: ParseResult['suggestion'] }) {
-    const s = out.suggestion;
-    if (!s || !s.label || !s.action || s.action === 'none') return;
-    await sleep(520);
-    push({
-      role: 'agent',
-      type: 'chips',
-      data: { tag: 'suggest', options: [s.label, 'Not now'], suggestAction: s.action, suggestFilters: s.filters ?? null },
-    });
-  }
-
   // Edit a logged expense inline — patch the card AND the persisted transaction.
   function editExpense(msgId: string, e: ParsedExpense) {
     patch(msgId, (mm) => ({ ...mm, data: { ...mm.data, expense: e } }));
@@ -231,8 +191,9 @@ export function ChatView() {
   // Auto-log the moment Penny presents an expense — the card reflects "Logged",
   // with inline edit + Undo. (Previously this was a draft needing a Save tap, so
   // entries Penny said were "logged" silently weren't.)
-  function pushExpenseCard(expense: ParsedExpense, live?: boolean) {
-    const txnId = app.addTxn({
+  function pushExpenseCard(expense: ParsedExpense, live?: boolean, existingTxnId?: string) {
+    // existingTxnId = the agent already inserted the row; show a display-only card.
+    const txnId = existingTxnId || app.addTxn({
       merchant: expense.merchant,
       cat: expense.category,
       amount: expense.total,
@@ -255,148 +216,52 @@ export function ChatView() {
 
   // ---------- main text pipeline (the model router) ----------
   async function handleText(text: string) {
-    // Build the OPEN chat trail (since the last close) for Haiku — Layer 1 sees it all.
+    // Open chat trail (since the last close) for the agent's memory window.
     const priorOpen = msgsRef.current.slice(trailStartRef.current);
-    const trail: EngineTurn[] = [];
+    const trail: AgentMsg[] = [];
     for (const m of priorOpen) {
       if (m.type === 'text' && m.text) trail.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
-      else if (m.role === 'agent' && m.type === 'expense' && m.data?.expense && !m.data?.undone) trail.push({ role: 'assistant', content: `(logged: ${m.data.expense.merchant} ${m.data.expense.total} AED, ${m.data.expense.category})` });
+      else if (m.role === 'agent' && m.type === 'expense' && m.data?.expense && !m.data?.undone) trail.push({ role: 'assistant', content: `(logged ${m.data.expense.merchant} ${m.data.expense.total} AED)` });
     }
-    trail.push({ role: 'user', content: text });
 
     push({ role: 'user', type: 'text', text });
     setInput('');
     const plan = classify(text);
-    const stepMs = plan.model === 'haiku' ? 520 : 900;
+    const stepMs = plan.model === 'haiku' ? 480 : 800;
     setThinking(true);
     setTrace({ ...plan, idx: 0 });
-    const timer = setInterval(() => {
-      setTrace((tr) => (tr && tr.idx < tr.steps.length - 1 ? { ...tr, idx: tr.idx + 1 } : tr));
-    }, stepMs);
-    const prevMsg = lastExpenseRef.current ? msgsRef.current.find((m) => m.id === lastExpenseRef.current) : null;
-    const prev = prevMsg && !prevMsg.data?.undone ? prevMsg.data?.expense || null : null;
-    const turns = priorOpen.filter((m) => m.type === 'text' && m.text).map((m) => ({ role: m.role, text: m.text as string }));
-    const extra = {
-      name: app.profile.name,
-      legend: buildLegend(app.accounts, app.categories),
-      runQueries,
-    };
-    const [out] = await Promise.all([engineTurn(trail, extra), sleep(Math.min(plan.steps.length, 4) * stepMs)]);
+    const timer = setInterval(() => setTrace((tr) => (tr && tr.idx < tr.steps.length - 1 ? { ...tr, idx: tr.idx + 1 } : tr)), stepMs);
+
+    const data = makeAgentData(app);
+    const ctx = { name: app.profile.name, currency: app.currency, accounts: app.accounts, categories: app.categories };
+    const confirm = (msg: string) => new Promise<boolean>((resolve) => setConfirmReq({ msg, resolve }));
+
+    const [out] = await Promise.all([
+      runAgent({ text, trail, leanBlock: leanUserBlock(ctx), fullBlock: fullUserBlock(ctx), data, confirm }),
+      sleep(Math.min(plan.steps.length, 3) * stepMs),
+    ]);
     clearInterval(timer);
     setTrace(null);
     setThinking(false);
-    if (out.close) trailStartRef.current = msgsRef.current.length; // topic resolved → next message starts fresh
-    const modelTag = { model: out.model || plan.model, label: plan.label };
 
-    if (out.kind === 'insight') {
-      push({ role: 'agent', type: 'text', text: out.reply, data: modelTag });
-      if (out.chart) {
-        await sleep(420);
-        push({ role: 'agent', type: 'chart', data: { k: out.chart } });
+    // Offline / parse fallback — heuristic on the message so the UI never dead-ends.
+    if (!out.live) {
+      const fb = localParse(text);
+      if (fb.expense && fb.expense.total > 0) { if (fb.reply) push({ role: 'agent', type: 'text', text: fb.reply }); pushExpenseCard(fb.expense, false); }
+      else push({ role: 'agent', type: 'text', text: fb.reply || "I couldn't reach the AI just now — try again in a moment, or add it manually." });
+      return;
+    }
+
+    if (out.reply) push({ role: 'agent', type: 'text', text: out.reply });
+    // Expense rows already inserted by the executor — show the rich card (display-only).
+    for (const w of out.writes) {
+      if (w.result.ok && w.result.kind === 'expense' && w.result.data) {
+        await sleep(280);
+        const d = w.result.data as { expense: ParsedExpense; txnId: string };
+        pushExpenseCard(d.expense, true, d.txnId);
       }
-      await maybeSuggest(out);
-      return;
     }
-    if (out.kind === 'note') {
-      const ctxStr = turns.slice(-6, -1).map((tn) => `${tn.role === 'user' ? 'Me' : 'Penny'}: ${tn.text}`).join('\n');
-      logNote(out.note || text, ctxStr || undefined);
-      push({ role: 'agent', type: 'text', text: out.reply || "Noted — I've logged that with the conversation around it. 🛠️" });
-      return;
-    }
-    if (out.kind === 'crud' && out.crud) {
-      const res = applyCrud(app, out.crud);
-      push({ role: 'agent', type: 'text', text: res.ok ? out.reply || res.message : res.message });
-      if (res.ok) app.toast(res.message);
-      await maybeSuggest(out);
-      return;
-    }
-    if (out.kind === 'ledger') {
-      const filters = normalizeFilters(out.filters);
-      if (out.reply) push({ role: 'agent', type: 'text', text: out.reply });
-      await sleep(300);
-      app.openLedger(filters);
-      return;
-    }
-    if (out.kind === 'track_add' && out.tracked) {
-      app.addTracked(normalizeTracked(out.tracked));
-      push({ role: 'agent', type: 'text', text: out.reply || "Tracked it — it's in your Money map now. 🧭" });
-      return;
-    }
-    if (out.kind === 'profile_edit' && out.profile?.name) {
-      const name = String(out.profile.name).trim().slice(0, 30);
-      app.updateProfile({ name });
-      push({ role: 'agent', type: 'text', text: out.reply || `Got it — I'll call you ${name} from now on. 👋` });
-      return;
-    }
-    if (out.kind === 'account_edit') {
-      const acct = out.match ? resolveAccount(out.match) : undefined;
-      const changes = (out.account || {}) as Partial<Account>;
-      if (acct) {
-        const clean: Partial<Account> = {};
-        if (changes.name) clean.name = changes.name;
-        if (typeof changes.balance === 'number') clean.balance = changes.balance;
-        if (typeof changes.creditLimit === 'number') clean.creditLimit = Math.abs(changes.creditLimit);
-        if (changes.currency) clean.currency = changes.currency;
-        if (changes.last4) clean.last4 = String(changes.last4).replace(/\D/g, '').slice(0, 4);
-        if (changes.note) clean.note = changes.note;
-        app.updateAccount(acct.id, clean);
-        push({ role: 'agent', type: 'text', text: out.reply || `Updated ${acct.name}.` });
-        app.toast(`${acct.name} updated`);
-      } else {
-        push({ role: 'agent', type: 'text', text: out.reply || "I couldn't tell which account to change — which one did you mean?" });
-      }
-      return;
-    }
-    if (out.kind === 'account_add' && out.account) {
-      if (out.reply) push({ role: 'agent', type: 'text', text: out.reply });
-      await sleep(380);
-      const a = out.account;
-      push({
-        role: 'agent',
-        type: 'account',
-        data: {
-          account: {
-            name: a.name,
-            group: a.group || 'bank',
-            currency: a.currency || 'AED',
-            balance: a.balance ?? 0,
-            ...(a.creditLimit ? { creditLimit: Math.abs(a.creditLimit) } : {}),
-            ...(a.last4 ? { last4: String(a.last4).replace(/\D/g, '').slice(0, 4) } : {}),
-          },
-          saved: false,
-        },
-      });
-      return;
-    }
-    if (out.kind === 'correction' && prev && lastExpenseRef.current) {
-      const id = lastExpenseRef.current;
-      const merged = { ...prev, ...out.expense! };
-      patch(id, (mm) => ({ ...mm, data: { ...mm.data, expense: merged, flash: true } }));
-      const cm = msgsRef.current.find((m) => m.id === id);
-      if (cm?.data?.txnId) app.updateTxn(cm.data.txnId, txnChangesFrom(merged));
-      setTimeout(() => patch(id, (mm) => ({ ...mm, data: { ...mm.data, flash: false } })), 1400);
-      push({ role: 'agent', type: 'text', text: out.reply || 'Fixed — updated the entry above. ✓' });
-      return;
-    }
-    if (out.kind === 'grocery_add' && out.groceryItems && out.groceryItems.length) {
-      out.groceryItems.forEach((n) => app.addGrocery(n));
-      push({ role: 'agent', type: 'text', text: out.reply || 'Added to your grocery list.' });
-      const soda = out.groceryItems.find((n) => /ginger ale|soda|cola|pepsi/i.test(n));
-      if (soda) {
-        await agentSay("Heads up though — that's the 3rd soda run this month (AED 66 so far). Want it on the list anyway?", 850);
-        push({ role: 'agent', type: 'chips', data: { tag: 'soda', options: ['Keep it, I deserve it', "You're right, remove it", 'Add to watchlist'] } });
-      }
-      return;
-    }
-    if (out.expense && out.expense.total > 0) {
-      if (out.reply) push({ role: 'agent', type: 'text', text: out.reply });
-      await sleep(380);
-      pushExpenseCard(out.expense, out.live);
-      await maybeSuggest(out);
-    } else {
-      push({ role: 'agent', type: 'text', text: out.reply || 'Hmm, tell me a bit more — what was it and how much?' });
-      await maybeSuggest(out);
-    }
+    if (out.close) trailStartRef.current = msgsRef.current.length;
   }
 
   // ---------- MCQ routing ----------
@@ -406,24 +271,6 @@ export function ChatView() {
       if (/receipt/i.test(option)) return flowReceipt('library');
       if (/sms/i.test(option)) return demoSMS();
       return handleText(option);
-    }
-    if (tag === 'suggest') {
-      if (/^not now$/i.test(option)) return;
-      const m = msgsRef.current.find((x) => x.id === msgId);
-      const action = m?.data?.suggestAction;
-      if (action === 'ledger') {
-        await agentSay('Opening it up for you…', 350);
-        app.openLedger(normalizeFilters(m?.data?.suggestFilters ?? undefined));
-      } else if (action === 'money_map') {
-        await agentSay('Here\'s your money map…', 350);
-        app.openMoney();
-      } else if (action === 'new_list') {
-        app.newShoppingList();
-        await agentSay('Fresh shopping list started — just tell me what to add. 🛒', 450);
-      } else if (action === 'watch') {
-        await agentSay("Done — I'll keep an eye on that and flag it when it moves. 👀", 550);
-      }
-      return;
     }
     if (tag === 'soda') {
       if (/remove/i.test(option)) {
@@ -753,6 +600,14 @@ export function ChatView() {
           );
         })}
       </div>
+
+      {/* agent confirm — balance changes, deletes, settles */}
+      <ConfirmDialog
+        open={!!confirmReq}
+        opts={confirmReq ? { title: 'Confirm', danger: true, confirmLabel: 'Yes, do it', message: <>{confirmReq.msg}</> } : null}
+        onConfirm={() => { confirmReq?.resolve(true); setConfirmReq(null); }}
+        onCancel={() => { confirmReq?.resolve(false); setConfirmReq(null); }}
+      />
     </div>
   );
 }

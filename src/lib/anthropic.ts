@@ -13,8 +13,12 @@ import { CAT_IDS } from './data';
 import { logLlm, type LlmUsage } from './llmlog';
 import { pickModel } from './route';
 import { schemaDigest } from './schema';
+import P1_LEAN from './prompts/p1_lean.txt?raw';
+import P2_FULL from './prompts/p2_full.txt?raw';
 import type {
+  AgentEnvelope,
   DigestResult,
+  LeanResult,
   ModelId,
   ParseContext,
   ParseResult,
@@ -242,7 +246,21 @@ export async function parseDirect(
   return parsed;
 }
 
-// ===================== 2-layer engine =====================
+// ===================== v2 agent (lean + full tiers) =====================
+
+/** Lean tier (P1): one-shot expense logging. Returns add[] or {more:true} to escalate. */
+export async function leanCall(userBlock: string, text: string): Promise<LeanResult | null> {
+  const out = await callMessages('haiku', P1_LEAN + userBlock, [{ role: 'user', content: text }], 320, 'lean');
+  return extractJSON<LeanResult>(out);
+}
+
+/** Full tier (P2): autonomous agent round. Returns an envelope (ops + state). */
+export async function agentCall(userBlock: string, messages: Anthropic.MessageParam[]): Promise<AgentEnvelope | null> {
+  const out = await callMessages('haiku', P2_FULL + userBlock, messages, 640, 'agent');
+  return extractJSON<AgentEnvelope>(out);
+}
+
+// ===================== 2-layer engine (legacy) =====================
 // Layer 1 (Haiku, always): sees the open chat trail. Logs the common stuff
 // directly (expense / grocery / profile / note / ledger), can fetch data via
 // `queries`, and ROUTES heavier work to Layer 2 with a self-contained brief.

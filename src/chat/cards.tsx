@@ -1,6 +1,6 @@
 // Penny — chat message cards: expense mini-form, account form, trace, model tag, chart, analysis, receipt
 import { useState } from 'react';
-import { ACCOUNTS, CATS, HISTORY, acctMask, allAccounts, fmt, necLevel } from '../lib/data';
+import { CATS, HISTORY, acctMask, allAccounts, fmt, necLevel } from '../lib/data';
 import type { CurrencyCode, ModelId, ParsedAccount, ParsedExpense } from '../lib/types';
 import { CatIcon, Icons } from '../components/Icons';
 import { NecMeter, NecPill } from '../components/ui';
@@ -30,7 +30,8 @@ export function ExpenseCard({
   const flash = !!msg.data!.flash;
   const [picker, setPicker] = useState<'cat' | 'acct' | null>(null);
   const cat = CATS[e.category] || CATS.other;
-  const acct = ACCOUNTS.find((a) => a.id === e.account) || ACCOUNTS[3];
+  const accts = allAccounts();
+  const acct = accts.find((a) => a.id === e.account) || accts[0] || { id: '', name: 'No account', group: 'wallet' as const, balance: 0, last4: null, bg: '', fg: '' };
   const lvl = necLevel(e.necessity);
 
   return (
