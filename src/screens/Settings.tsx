@@ -283,8 +283,8 @@ export function Settings() {
         <Section title="Penny AI — your own key">
           <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
             Penny runs on your own Anthropic (Claude) key — it stays on your device and calls Claude directly.{' '}
-            <span style={{ fontWeight: 700, color: live ? 'var(--sage-deep)' : 'var(--amber-deep)' }}>
-              {live ? 'Live ✓' : 'Demo mode (no key)'}
+            <span style={{ fontWeight: 700, color: live ? 'var(--sage-deep)' : 'var(--coral-deep)', display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+              {live ? <><Icons.check size={13} /> Live</> : 'Offline — no key'}
             </span>
           </div>
           <input style={inputStyle} type="password" value={apiKey} placeholder="sk-ant-…" onChange={(e) => { setApiKey(e.target.value); setTest('idle'); }} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
@@ -292,8 +292,8 @@ export function Settings() {
             <button className="chip-btn" onClick={testKey} disabled={test === 'testing'}>
               {test === 'testing' ? 'Testing…' : 'Test key'}
             </button>
-            {test === 'ok' && <span style={{ color: 'var(--sage-deep)', fontWeight: 700, fontSize: 12.5 }}>✓ Works</span>}
-            {test === 'fail' && <span style={{ color: 'var(--coral-deep)', fontWeight: 700, fontSize: 12.5 }}>✕ Invalid / failed</span>}
+            {test === 'ok' && <span style={{ color: 'var(--sage-deep)', fontWeight: 700, fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icons.check size={14} /> Works</span>}
+            {test === 'fail' && <span style={{ color: 'var(--coral-deep)', fontWeight: 700, fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icons.close size={14} /> Invalid / failed</span>}
             <button className="xp-save" style={{ borderRadius: 12, flex: 1, padding: 10 }} onClick={saveApiKey}>Save key</button>
           </div>
           <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
@@ -353,7 +353,7 @@ export function Settings() {
           )}
           {showJoin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button className="chip-btn" onClick={scanInvite} disabled={scanning}>{scanning ? 'Reading…' : '📷 Scan invite QR'}</button>
+              <button className="chip-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={scanInvite} disabled={scanning}>{scanning ? 'Reading…' : <><Icons.camera size={14} /> Scan invite QR</>}</button>
               <textarea style={{ ...inputStyle, minHeight: 60, resize: 'none' }} value={joinText} placeholder="…or paste the invite text" onChange={(e) => setJoinText(e.target.value)} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
               <button className="xp-save" style={{ borderRadius: 12, padding: 10 }} onClick={() => applyInvite(joinText)} disabled={!joinText.trim()}>Join with pasted invite</button>
             </div>

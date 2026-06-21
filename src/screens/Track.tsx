@@ -304,7 +304,7 @@ function ShoppingPane() {
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '0 20px 8px' }}>
             <span>
               <span className="h-display" style={{ fontSize: 17 }}>{open.name}</span>
-              <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginTop: 1 }}>📅 Started {dayLabel(open.createdAt)}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginTop: 2 }}><Icons.calendar size={12} /> Started {dayLabel(open.createdAt)}</span>
             </span>
             <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>{toBuy} to buy</span>
           </div>
@@ -429,7 +429,7 @@ function ShoppingPane() {
                       <span>
                         {over
                           ? `Spent ${fmt((l.actualAED || 0) - (l.estimateAED || 0), cur)} over your estimate — likely unplanned add-ons. Worth a look at what crept in.`
-                          : `Came in under your estimate by ${fmt((l.estimateAED || 0) - (l.actualAED || 0), cur)} — disciplined trip. 👏`}
+                          : `Came in under your estimate by ${fmt((l.estimateAED || 0) - (l.actualAED || 0), cur)} — disciplined trip.`}
                       </span>
                     </div>
                   )}

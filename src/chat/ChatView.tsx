@@ -151,7 +151,7 @@ export function ChatView() {
         push({
           role: 'agent',
           type: 'text',
-          text: `Hey ${app.profile.name} 👋 — tell me what you spent, snap a bill, forward a bank SMS — or just ask me things about your money.`,
+          text: `Hey ${app.profile.name} — tell me what you spent, snap a bill, forward a bank SMS — or just ask me things about your money.`,
         });
         push({ role: 'agent', type: 'chips', data: { tag: 'starter', options: STARTERS } });
       })();
@@ -257,8 +257,8 @@ export function ChatView() {
         role: 'agent',
         type: 'text',
         text: live
-          ? "⚠️ Penny is offline — I couldn't reach the Claude API just now. Check your connection and send that again."
-          : "⚠️ Penny is offline. I work entirely through the Claude API — add your Anthropic key in Menu → Settings → Penny AI to switch me on. (You can still add things manually with the + button.)",
+          ? "Penny is offline — I couldn't reach the Claude API just now. Check your connection and send that again."
+          : "Penny is offline. I work entirely through the Claude API — add your Anthropic key in Menu → Settings → Penny AI to switch me on. (You can still add things manually with the + button.)",
       });
       return;
     }
@@ -297,7 +297,7 @@ export function ChatView() {
     }
     if (tag === 'receiptWatch') {
       if (/watch/i.test(option)) await agentSay('Watching it. Current soda total this month: AED 66. I\'ll flag the next one.', 700);
-      else await agentSay('Noted — no judgement, just bookkeeping. 🙂', 600);
+      else await agentSay('Noted — no judgement, just bookkeeping.', 600);
       return;
     }
     if (tag === 'stmtImport') {
@@ -319,7 +319,7 @@ export function ChatView() {
     if (tag === 'cloudvault') {
       if (/cancel/i.test(option)) await agentSay("Added a cancellation reminder with the merchant's link — and I'll watch for the next charge. That's AED 441/yr back in your pocket.", 800);
       else if (/remind/i.test(option)) await agentSay("Will do — I'll nudge you 2 days before the next charge on the 4th.", 650);
-      else await agentSay('Kept. I\'ll stop side-eyeing it. 👀', 600);
+      else await agentSay('Kept. I\'ll stop side-eyeing it.', 600);
       return;
     }
   }

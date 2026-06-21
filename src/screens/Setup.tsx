@@ -216,7 +216,7 @@ function CategoriesPane() {
         const [color, tint] = known ? [known.color, known.tint] : PALETTE[i % PALETTE.length];
         return { id: c.id || 'cat-' + i, label: c.label, color, tint, icon: known?.icon || 'dots', subs: (c.subs || []).map((s, j) => ({ id: `${c.id}:gen-${j}`, label: s })) };
       });
-      setConfirm({ opts: { title: 'Replace categories?', confirmLabel: 'Use these', message: <>Penny suggested <b>{tree.length}</b> categories with subcategories. This replaces your current tree (transactions keep their tags).</> }, onYes: () => { app.setCategoryTree(tree); app.toast('Categories updated by AI ✨'); } });
+      setConfirm({ opts: { title: 'Replace categories?', confirmLabel: 'Use these', message: <>Penny suggested <b>{tree.length}</b> categories with subcategories. This replaces your current tree (transactions keep their tags).</> }, onYes: () => { app.setCategoryTree(tree); app.toast('Categories updated by AI'); } });
     } catch {
       setGen('idle');
       app.toast('AI generate failed');
@@ -230,7 +230,7 @@ function CategoriesPane() {
         <button className="xp-save" style={{ borderRadius: 12, padding: '0 16px' }} onClick={() => { if (newCat.trim()) { app.addCategory(newCat); setNewCat(''); } }}>Add</button>
       </div>
       <div style={{ margin: '8px 16px 0' }}>
-        <button className="chip-btn" style={{ width: '100%', padding: 10 }} onClick={runGenerate} disabled={gen === 'working'}>{gen === 'working' ? 'Generating…' : '✨ Generate with AI'}</button>
+        <button className="chip-btn" style={{ width: '100%', padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={runGenerate} disabled={gen === 'working'}>{gen === 'working' ? 'Generating…' : <><Icons.spark size={15} /> Generate with AI</>}</button>
       </div>
       <div style={{ margin: '14px 16px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {app.categories.map((cat) => {

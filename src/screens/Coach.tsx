@@ -124,7 +124,7 @@ export function CoachScreen() {
             <div className="eyebrow" style={{ fontSize: 10 }}>Financial health</div>
             <div className="h-display" style={{ fontSize: 22, color: health.color, lineHeight: 1.1, marginTop: 2 }}>{health.grade}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 4 }}>
-              {health.score >= target ? `Above your ${target} target 🎉` : `${target - health.score} pts to your ${target} target`}
+              {health.score >= target ? `Above your ${target} target` : `${target - health.score} pts to your ${target} target`}
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ export function CoachScreen() {
               {achieved ? (
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700 }}>Achievement</div>
-                  <div className="h-display" style={{ fontSize: 15, color: 'var(--sage-deep)' }}>🏅 {achieved.name}</div>
+                  <div className="h-display" style={{ fontSize: 15, color: 'var(--sage-deep)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}><Icons.medal size={16} color="var(--sage-deep)" /> {achieved.name}</div>
                 </div>
               ) : (
                 <div style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 700, textAlign: 'right', maxWidth: 130 }}>Save {fmt(100, cur)} to begin</div>

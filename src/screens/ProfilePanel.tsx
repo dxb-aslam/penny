@@ -10,7 +10,7 @@ const CURRENCIES: CurrencyCode[] = ['AED', 'USD', 'EUR', 'INR'];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '🙂';
+  if (!parts.length) return '';
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
 }
 
@@ -47,7 +47,7 @@ export function ProfilePanel() {
           {/* avatar */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 18px' }}>
             <div style={{ width: 78, height: 78, borderRadius: 40, background: 'linear-gradient(135deg, var(--accent), var(--coral))', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, fontFamily: 'var(--font-display)', boxShadow: 'var(--shadow-card)' }}>
-              {initials(name)}
+              {name.trim() ? initials(name) : <Icons.user size={34} color="#fff" />}
             </div>
             <div style={{ fontWeight: 800, fontSize: 17 }} className="h-display">{name || 'You'}</div>
           </div>

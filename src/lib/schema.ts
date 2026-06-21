@@ -179,7 +179,7 @@ const subSpec: TableSpec<Sub> = {
     { key: 'attrWho', label: 'Who (if not me)', type: 'text', placeholder: 'business / name' },
   ],
   primary: (r) => r.name,
-  secondary: (r, app) => `${fmt(r.amount, app.currency)} · ${r.every}${r.attribution && r.attribution.mode !== 'self' ? ` · ↩ ${r.attribution.who || r.attribution.mode}` : ''}`,
+  secondary: (r, app) => `${fmt(r.amount, app.currency)} · ${r.every}${r.attribution && r.attribution.mode !== 'self' ? ` · for ${r.attribution.who || r.attribution.mode}` : ''}`,
   toForm: (r) => ({ name: r.name, amount: r.amount, every: r.every, nextIn: r.nextIn, cat: r.cat, essential: !!r.essential, attrMode: r.attribution?.mode || 'self', attrWho: r.attribution?.who || '' }),
   create: (app, v) => app.addSub({ name: str(v.name) || 'Subscription', amount: num(v.amount), every: str(v.every) || 'monthly', nextIn: num(v.nextIn), cat: (str(v.cat) || 'subs') as CategoryId, essential: !!v.essential, attribution: attrFrom(v.attrMode, v.attrWho) }),
   update: (app, r, v) => app.updateSub(r.id, { name: str(v.name), amount: num(v.amount), every: str(v.every), nextIn: num(v.nextIn), cat: (str(v.cat) || r.cat) as CategoryId, essential: !!v.essential, attribution: attrFrom(v.attrMode, v.attrWho) }),

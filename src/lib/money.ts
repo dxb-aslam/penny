@@ -62,7 +62,7 @@ export function owedToMe(tracked: TrackedItem[], txns: Txn[], settledIds: string
   }
   for (const it of tracked) {
     if (it.kind === 'receivable' && it.status === 'open') {
-      const bits = [it.cheque ? '🧾 Post-dated cheque' : null, it.dueDate ? dueLabel(it.dueDate) : null, it.note || (it.cheque ? '' : it.title)].filter(Boolean);
+      const bits = [it.cheque ? 'Post-dated cheque' : null, it.dueDate ? dueLabel(it.dueDate) : null, it.note || (it.cheque ? '' : it.title)].filter(Boolean);
       rows.push({
         key: 'item-' + it.id,
         who: it.counterparty || it.title,

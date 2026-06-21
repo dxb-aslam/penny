@@ -87,7 +87,7 @@ export function HomeScreen() {
           aria-label="Profile"
           style={{ width: 40, height: 40, borderRadius: 20, border: 0, background: 'linear-gradient(135deg, var(--accent), var(--coral))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 15, fontFamily: 'var(--font-display)', boxShadow: 'var(--shadow-card)' }}
         >
-          {(app.profile.name.trim()[0] || '🙂').toUpperCase()}
+          {app.profile.name.trim() ? app.profile.name.trim()[0].toUpperCase() : <Icons.user size={18} color="#fff" />}
         </button>
       </div>
 

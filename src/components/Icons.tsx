@@ -58,6 +58,8 @@ export const Icons = {
   bell: makeIcon('<path d="M18 9a6 6 0 10-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 19.5a2.2 2.2 0 004 0"/>'),
   coins: makeIcon('<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M3 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/><path d="M21 10v7c0 1.2-1.3 2.2-3 2.7"/><path d="M18 5.5c1.8.4 3 1.4 3 2.5 0 .8-.7 1.6-1.8 2.1"/>'),
   trend: makeIcon('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+  medal: makeIcon('<path d="M9 3l2.4 5.6M15 3l-2.4 5.6"/><circle cx="12" cy="14.5" r="5.5"/><path d="M12 11.9l.85 1.7 1.9.3-1.37 1.34.32 1.9L12 16.5l-1.7.94.32-1.9-1.37-1.34 1.9-.3z"/>'),
+  receipt: makeIcon('<path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h5"/>'),
   shield: makeIcon('<path d="M12 3l8 3v6c0 5-3.5 8-8 9.5C7.5 20 4 17 4 12V6z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/>'),
   sms: makeIcon('<rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M9 5.5h6"/><path d="M8.5 11h7M8.5 14h4.5"/>'),
   pencil: makeIcon('<path d="M14.5 5.5l4 4L8 20l-4.7.7L4 16z"/><path d="M12.5 7.5l4 4"/>'),

@@ -331,14 +331,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Always flag money leaving the designated savings account.
     const savId = LS.read<string | null>('savingsAccountId', null);
     if (savId && x.account === savId && !x.income && !x.transfer && x.amount > 0) {
-      showToast(`⚠️ ${fmt(x.amount, currency)} left your savings`);
+      showToast(`${fmt(x.amount, currency)} left your savings`);
     }
     return id;
   }, [showToast, currency]);
   const addTransfer = useCallback((from: string, to: string, amount: number, note?: string, charge?: number, ts?: number) => {
     if (!from || !to || from === to || !(amount > 0)) return;
     const savId = LS.read<string | null>('savingsAccountId', null);
-    if (savId && from === savId) showToast(`⚠️ ${fmt(amount, currency)} moved out of savings`);
+    if (savId && from === savId) showToast(`${fmt(amount, currency)} moved out of savings`);
     const when = ts ?? Date.now();
     setUserTxns((cur) => {
       const id = 'u' + Date.now();
