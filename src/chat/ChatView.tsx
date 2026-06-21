@@ -49,6 +49,10 @@ interface TraceState {
   label: string;
 }
 
+// After a topic closes, retain this many trailing messages (≈5-6 exchanges) so
+// the agent keeps context for a follow-up instead of starting cold.
+const KEEP_AFTER_CLOSE = 10;
+
 const STARTERS = [
   'had tea and snack 2+3, 5 aed',
   'Scan a grocery receipt',
@@ -268,7 +272,10 @@ export function ChatView() {
         pushExpenseCard(d.expense, true, d.txnId);
       }
     }
-    if (out.close) trailStartRef.current = msgsRef.current.length;
+    // On close, the topic is resolved — but DON'T go blind. Keep the last ~10
+    // messages (≈5-6 exchanges) as a rolling tail so Penny stays aware of what
+    // just happened when the next, possibly-related message arrives.
+    if (out.close) trailStartRef.current = Math.max(0, msgsRef.current.length - KEEP_AFTER_CLOSE);
   }
 
   // ---------- MCQ routing ----------
