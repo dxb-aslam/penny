@@ -1,7 +1,7 @@
 // Penny — chat view: the conversational logging surface (the core experience)
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, allAccounts } from '../lib/data';
-import { classify, isLive, localParse, parseReceipt, parseStatement } from '../lib/llm';
+import { classify, isLive, parseReceipt, parseStatement } from '../lib/llm';
 import { logChat } from '../lib/diag';
 import { runAgent, type AgentMsg } from '../lib/agent/loop';
 import { makeAgentData } from '../lib/agent/appData';
@@ -246,16 +246,16 @@ export function ChatView() {
     setThinking(false);
     awaitingRef.current = out.awaiting; // remember if the agent is waiting for the user's reply
 
-    // Offline / parse fallback — heuristic on the message so the UI never dead-ends.
+    // No local guessing. If Penny's AI couldn't run, NEVER log from a heuristic —
+    // tell the user why (no key vs transient) so nothing gets logged wrongly.
     if (!out.live) {
-      // A bare number (no merchant) is ambiguous even offline — ask, never auto-log.
-      if (/^[\d\s.,/-]+$/.test(text.trim())) {
-        push({ role: 'agent', type: 'text', text: `Just to be sure — is ${text.trim()} an expense? If so, tell me what it was (e.g. "lunch ${text.trim()}"). If you meant something else — a card's last 4 digits, an account balance — just say so.` });
-        return;
-      }
-      const fb = localParse(text);
-      if (fb.expense && fb.expense.total > 0) { if (fb.reply) push({ role: 'agent', type: 'text', text: fb.reply }); pushExpenseCard(fb.expense, false); }
-      else push({ role: 'agent', type: 'text', text: fb.reply || "I couldn't reach the AI just now — try again in a moment, or add it manually." });
+      push({
+        role: 'agent',
+        type: 'text',
+        text: live
+          ? "I couldn't reach my brain just now — give it a moment and send that again."
+          : "I need your Anthropic API key before I can understand messages. Add it in Menu → Settings → Penny AI, then I'll handle this properly. (You can still add things manually with the + button.)",
+      });
       return;
     }
 
