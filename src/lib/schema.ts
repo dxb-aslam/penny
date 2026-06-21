@@ -87,19 +87,21 @@ const accountSpec: TableSpec<Account> = {
     { key: 'balance', label: 'Opening balance (new account)', type: 'number' },
     { key: 'openingDate', label: 'Opening date', type: 'date' },
     { key: 'creditLimit', label: 'Credit limit (cards)', type: 'number' },
-    { key: 'dueDate', label: 'Payment due (cards)', type: 'date' },
+    { key: 'statementDay', label: 'Statement day 1-30 (cards)', type: 'number' },
+    { key: 'dueDays', label: 'Due days after statement (cards)', type: 'number' },
+    { key: 'dueDate', label: 'Fixed due date (cards)', type: 'date' },
     { key: 'last4', label: 'Last 4 digits', type: 'text', placeholder: '0000' },
   ],
   primary: (r) => r.name + (acctMask(r) ? ' ' + acctMask(r) : ''),
   secondary: (r, app) => `${r.group} · ${fmt(r.balance, app.currency)}`,
   // Opening fields blank on edit — balance derives from transactions, not the form.
   toForm: (r) => ({ name: r.name, group: r.group, currency: r.currency || 'AED', balance: '', openingDate: '', creditLimit: r.creditLimit, dueDate: r.dueDate || '', last4: r.last4 || '' }),
-  create: (app, v) => app.addAccount({ name: str(v.name) || 'Account', group: oneOf<AccountGroup>(v.group, GROUPS, 'bank'), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), openingDate: v.openingDate ? str(v.openingDate) : undefined, creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || undefined }),
+  create: (app, v) => app.addAccount({ name: str(v.name) || 'Account', group: oneOf<AccountGroup>(v.group, GROUPS, 'bank'), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), openingDate: v.openingDate ? str(v.openingDate) : undefined, creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, statementDay: v.statementDay != null && v.statementDay !== '' ? Math.max(1, Math.min(30, Math.round(num(v.statementDay)))) : undefined, dueDays: v.dueDays != null && v.dueDays !== '' ? Math.max(0, Math.round(num(v.dueDays))) : undefined, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || undefined }),
   // Balance is derived from transactions. If a balance is given (e.g. via chat
   // "set the opening balance to X"), reconcile it by posting an opening/adjustment
   // entry so the derived balance matches — rather than silently ignoring it.
   update: (app, r, v) => {
-    app.updateAccount(r.id, { name: str(v.name) || r.name, group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null });
+    app.updateAccount(r.id, { name: str(v.name) || r.name, group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, statementDay: v.statementDay != null && v.statementDay !== '' ? Math.max(1, Math.min(30, Math.round(num(v.statementDay)))) : undefined, dueDays: v.dueDays != null && v.dueDays !== '' ? Math.max(0, Math.round(num(v.dueDays))) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null });
     if (v.balance != null && v.balance !== '') {
       const delta = num(v.balance) - r.balance;
       if (Math.abs(delta) >= 0.005) {

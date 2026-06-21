@@ -256,6 +256,35 @@ export function allTxns(): Txn[] {
   return [...user, ...seed].filter((t) => !removed.has(t.id)).map((t) => (overrides[t.id] ? { ...t, ...overrides[t.id] } : t));
 }
 
+/**
+ * Effective credit-card due date. Prefers a statement-day + days-after rule
+ * (counted on 30-day months), else a fixed dueDate. Returns the next occurrence.
+ */
+export function cardDue(a: Account, now = Date.now()): { dayOfMonth: number; date: Date; inDays: number; label: string } | null {
+  const base = new Date(now);
+  const todayMid = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  if (a.statementDay && a.dueDays != null) {
+    const D = (((a.statementDay + a.dueDays - 1) % 30) + 30) % 30 + 1; // 1–30, 30-day months
+    let target = new Date(base.getFullYear(), base.getMonth(), D);
+    if (target < todayMid) target = new Date(base.getFullYear(), base.getMonth() + 1, D);
+    const inDays = Math.round((target.getTime() - todayMid.getTime()) / 86400000);
+    return { dayOfMonth: D, date: target, inDays, label: `Due ~${ordinal(D)}` };
+  }
+  if (a.dueDate) {
+    const t = Date.parse(a.dueDate);
+    if (!isNaN(t)) {
+      const d = new Date(t);
+      const inDays = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - todayMid.getTime()) / 86400000);
+      return { dayOfMonth: d.getDate(), date: d, inDays, label: `Due ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` };
+    }
+  }
+  return null;
+}
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 export function txnDir(t: Txn, accountId?: string): 'in' | 'out' | 'transfer' {
   if (t.transfer) {
     if (accountId && t.counterAccount === accountId) return 'in';

@@ -63,6 +63,10 @@ export interface Account {
   creditLimit?: number;
   /** Cards: statement/payment due date (YYYY-MM-DD or free text). Changes are logged. */
   dueDate?: string | null;
+  /** Cards: statement day of month (1–30). With dueDays, the due date is computed. */
+  statementDay?: number | null;
+  /** Cards: payment is due this many days after the statement day (30-day months). */
+  dueDays?: number | null;
 }
 
 /** Audit entry for a non-monetary account change (credit limit / due date). */
@@ -254,6 +258,8 @@ export interface ParsedAccount {
   balance: number;
   creditLimit?: number;
   last4?: string;
+  statementDay?: number;
+  dueDays?: number;
 }
 
 export interface ParseResult {

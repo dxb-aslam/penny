@@ -15,6 +15,10 @@ const GROUPS: { id: AccountGroup; label: string }[] = [
 ];
 const CURRENCIES: CurrencyCode[] = ['AED', 'USD', 'EUR', 'INR'];
 const todayISO = () => new Date().toISOString().slice(0, 10);
+function ordinalLabel(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 const inputStyle: React.CSSProperties = { width: '100%', border: '1.5px solid var(--line-strong)', background: '#fff', borderRadius: 11, padding: '11px 13px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', outline: 'none' };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -54,6 +58,8 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
   const [last4, setLast4] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [statementDay, setStatementDay] = useState('');
+  const [dueDays, setDueDays] = useState('');
   const [balance, setBalance] = useState('');
   const [openingDate, setOpeningDate] = useState('');
 
@@ -67,6 +73,8 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
       setLast4(a?.last4 || '');
       setCreditLimit(a?.creditLimit ? String(a.creditLimit) : '');
       setDueDate(a?.dueDate || '');
+      setStatementDay(a?.statementDay ? String(a.statementDay) : '');
+      setDueDays(a?.dueDays != null ? String(a.dueDays) : '');
       setBalance('');
       setOpeningDate(LS.read<string>('openingDate', '') || todayISO());
     }
@@ -78,6 +86,8 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
 
   const submit = () => {
     const clean4 = last4.replace(/\D/g, '').slice(0, 4) || undefined;
+    const stmtDay = isCard && statementDay ? Math.max(1, Math.min(30, Math.round(Number(statementDay)))) : null;
+    const dDays = isCard && dueDays !== '' ? Math.max(0, Math.round(Number(dueDays))) : null;
     if (isEdit && a) {
       app.updateAccount(a.id, {
         name: name.trim(),
@@ -86,6 +96,8 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
         last4: isWallet ? null : clean4 || null,
         creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
         dueDate: isCard ? (dueDate || null) : null,
+        statementDay: stmtDay,
+        dueDays: dDays,
       });
       app.toast('Account updated');
     } else {
@@ -97,6 +109,8 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
         openingDate: openingDate || undefined,
         creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
         last4: isWallet ? undefined : clean4,
+        ...(stmtDay != null ? { statementDay: stmtDay } : {}),
+        ...(dDays != null ? { dueDays: dDays } : {}),
       });
       app.toast('Account added');
     }
@@ -125,7 +139,16 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
         {isCard && (
           <>
             <Field label="Credit limit"><input style={inputStyle} value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="e.g. 15000" inputMode="numeric" /></Field>
-            <Field label="Payment due date (optional)"><input style={inputStyle} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Field label="Statement day (1–30)"><input style={inputStyle} value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="e.g. 25" inputMode="numeric" /></Field>
+              <Field label="Due (days after)"><input style={inputStyle} value={dueDays} onChange={(e) => setDueDays(e.target.value)} placeholder="e.g. 21" inputMode="numeric" /></Field>
+            </div>
+            {statementDay && dueDays !== '' && (
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: -6, marginBottom: 8 }}>
+                Due around the <b>{ordinalLabel((((Number(statementDay) + Number(dueDays) - 1) % 30) + 30) % 30 + 1)}</b> each month (30-day months).
+              </div>
+            )}
+            <Field label="Or fixed due date (optional)"><input style={inputStyle} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
           </>
         )}
         {!isEdit && (

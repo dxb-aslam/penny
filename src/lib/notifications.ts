@@ -2,7 +2,7 @@
 // now derived from real data and surfaced through the Home bell.
 import type { Account, CurrencyCode, Emi, Sub, Txn } from './types';
 import type { IconName } from '../components/Icons';
-import { BUDGET_MO, fmt } from './data';
+import { BUDGET_MO, cardDue, fmt } from './data';
 import { savingsBalance, savingsOutflows } from './savings';
 import { computeHealth, readHealthTarget } from './health';
 
@@ -31,12 +31,6 @@ export interface NotifCtx {
   healthTarget: number;
 }
 
-function daysUntil(dateStr?: string | null): number | null {
-  if (!dateStr) return null;
-  const t = Date.parse(dateStr);
-  if (isNaN(t)) return null;
-  return Math.round((t - Date.now()) / 86400000);
-}
 
 export function buildNotifications(c: NotifCtx): NotifItem[] {
   const items: NotifItem[] = [];
@@ -55,10 +49,10 @@ export function buildNotifications(c: NotifCtx): NotifItem[] {
     });
   }
 
-  // 2 · cards due soon
+  // 2 · cards due soon (statement-day + days rule, else fixed due date)
   for (const a of c.accounts) {
     if (a.group !== 'card' || a.balance >= 0) continue;
-    const d = daysUntil(a.dueDate);
+    const d = cardDue(a)?.inDays ?? null;
     if (d != null && d >= 0 && d <= 7) {
       items.push({
         id: 'due-' + a.id,

@@ -1,6 +1,6 @@
 // Penny — account dashboard: balance, recent transactions, view-all, edit.
 import { useState } from 'react';
-import { CATS, acctMask, accountInitials, dayLabel, fmt, txnDir, txnTouchesAccount } from '../lib/data';
+import { CATS, acctMask, accountInitials, cardDue, dayLabel, fmt, txnDir, txnTouchesAccount } from '../lib/data';
 import { categoryBreakdown } from '../lib/ledger';
 import type { CurrencyCode } from '../lib/types';
 import { CatIcon, Icons } from '../components/Icons';
@@ -89,6 +89,7 @@ export function AccountView() {
   const account = app.accounts.find((a) => a.id === accountViewId) || null;
   const [editing, setEditing] = useState(false);
   const isCard = (account?.group || 'bank') === 'card';
+  const due = isCard && account ? cardDue(account) : null;
   const acctChanges = account ? app.acctHistoryFor(account.id) : [];
 
   const acctTxns = account ? app.txns.filter((t) => txnTouchesAccount(t, account.id)) : [];
@@ -147,9 +148,9 @@ export function AccountView() {
                 </div>
               </div>
             ) : null}
-            {isCard && account.dueDate ? (
+            {isCard && due ? (
               <div style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 700, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icons.calendar size={13} /> Payment due {account.dueDate}
+                <Icons.calendar size={13} /> Payment {due.label}{due.inDays >= 0 && due.inDays <= 31 ? ` · in ${due.inDays}d` : ''}
               </div>
             ) : null}
           </div>
