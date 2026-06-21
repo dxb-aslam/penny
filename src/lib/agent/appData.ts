@@ -25,6 +25,7 @@ export function makeAgentData(app: AppApi): AgentData {
         case 'tracked_item': return app.tracked as unknown as Record<string, unknown>[];
         case 'category': return app.categories as unknown as Record<string, unknown>[];
         case 'grocery_item': return ((app.openList?.items) || []) as unknown as Record<string, unknown>[];
+        case 'credit_line': return app.creditLines as unknown as Record<string, unknown>[];
         case 'profile': return [app.profile] as unknown as Record<string, unknown>[];
         default: return [];
       }
@@ -67,6 +68,7 @@ export function makeAgentData(app: AppApi): AgentData {
           app.addTracked({ kind: (s(o.kind) || 'receivable') as TrackKind, title: s(o.title) || s(o.counterparty) || 'Item', counterparty: o.counterparty ? s(o.counterparty) : undefined, amount: Math.abs(n(o.amount)), dueDate: dateMs(o.dueDate), recurring: !!o.recurring, interestRate: o.interestRate ? Math.abs(n(o.interestRate)) : undefined });
           return { ok: true, kind: 'tracked' };
         }
+        case 'credit_line': { const id = app.addCreditLine({ bank: s(o.bank) || s(o.name) || 'Card', name: o.name ? s(o.name) : undefined, sharedLimit: Math.abs(n(o.sharedLimit)), currency: app.currency, note: o.note ? s(o.note) : undefined }); return { ok: true, kind: 'credit_line', data: { id } }; }
         case 'grocery_item': { app.addGrocery(s(o.name)); return { ok: true, kind: 'grocery' }; }
         case 'category': { app.addCategory(s(o.label) || s(o.name) || 'Category'); return { ok: true, kind: 'category' }; }
         case 'shopping_list': { app.newShoppingList(o.name ? s(o.name) : undefined); return { ok: true, kind: 'list' }; }
@@ -83,6 +85,7 @@ export function makeAgentData(app: AppApi): AgentData {
           case 'emi': app.updateEmi(id, c); return true;
           case 'tracked_item': { if (s(c.status) === 'settled') app.settleTracked(id); else app.updateTracked(id, c); return true; }
           case 'category': app.updateCategory(id, c); return true;
+          case 'credit_line': app.updateCreditLine(id, c); return true;
           case 'profile': app.updateProfile({ name: s(c.name) }); return true;
           default: return false;
         }
@@ -97,6 +100,7 @@ export function makeAgentData(app: AppApi): AgentData {
           case 'emi': app.removeEmi(id); return true;
           case 'tracked_item': app.removeTracked(id); return true;
           case 'category': app.removeCategory(id); return true;
+          case 'credit_line': app.removeCreditLine(id); return true;
           default: return false;
         }
       } catch { return false; }

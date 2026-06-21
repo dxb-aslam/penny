@@ -62,6 +62,7 @@ export const SHARED_DOCS = [
   'userAccounts',
   'accountOverrides',
   'removedAccounts',
+  'creditLines',
   'userEmis',
   'emiOverrides',
   'removedEmis',

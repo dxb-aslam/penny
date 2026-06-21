@@ -234,7 +234,7 @@ export function ChatView() {
     const timer = setInterval(() => setTrace((tr) => (tr && tr.idx < tr.steps.length - 1 ? { ...tr, idx: tr.idx + 1 } : tr)), stepMs);
 
     const data = makeAgentData(app);
-    const ctx = { name: app.profile.name, currency: app.currency, accounts: app.accounts, categories: app.categories };
+    const ctx = { name: app.profile.name, currency: app.currency, accounts: app.accounts, categories: app.categories, creditLines: app.creditLines };
     const confirm = (msg: string) => new Promise<boolean>((resolve) => setConfirmReq({ msg, resolve }));
 
     const [out] = await Promise.all([

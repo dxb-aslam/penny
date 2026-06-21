@@ -67,6 +67,21 @@ export interface Account {
   statementDay?: number | null;
   /** Cards: payment is due this many days after the statement day (30-day months). */
   dueDays?: number | null;
+  /** Cards: id of a shared credit_line. When set, available/utilisation come from the
+   *  LINE (creditLimit becomes an optional per-card sub-cap). Null/absent = own limit (legacy). */
+  creditLineId?: string | null;
+}
+
+/** A credit limit shared by one or more card accounts (e.g. two cards on one line,
+ *  or a supplementary). Available + utilisation are properties of the line, not the card. */
+export interface CreditLine {
+  id: string;
+  bank: string;
+  name?: string;          // "Mashreq shared line"
+  sharedLimit: number;
+  currency?: CurrencyCode;
+  note?: string;
+  createdAt?: number;
 }
 
 /** Audit entry for a non-monetary account change (credit limit / due date). */
@@ -260,6 +275,7 @@ export interface ParsedAccount {
   last4?: string;
   statementDay?: number;
   dueDays?: number;
+  creditLineId?: string | null;
 }
 
 export interface ParseResult {

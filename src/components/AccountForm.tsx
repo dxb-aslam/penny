@@ -62,6 +62,10 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
   const [dueDays, setDueDays] = useState('');
   const [balance, setBalance] = useState('');
   const [openingDate, setOpeningDate] = useState('');
+  // Shared credit line: '' = own limit (legacy), a line id, or '__new' to create one.
+  const [lineChoice, setLineChoice] = useState('');
+  const [newLineBank, setNewLineBank] = useState('');
+  const [newLineLimit, setNewLineLimit] = useState('');
 
   // re-seed whenever the form (re)opens or switches record
   if (state !== seed) {
@@ -77,27 +81,41 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
       setDueDays(a?.dueDays != null ? String(a.dueDays) : '');
       setBalance('');
       setOpeningDate(LS.read<string>('openingDate', '') || todayISO());
+      setLineChoice(a?.creditLineId || '');
+      setNewLineBank('');
+      setNewLineLimit('');
     }
   }
 
   const isCard = group === 'card';
   const isWallet = group === 'wallet';
+  const linked = isCard && lineChoice !== '';
   const canSave = name.trim().length > 0;
 
   const submit = () => {
     const clean4 = last4.replace(/\D/g, '').slice(0, 4) || undefined;
     const stmtDay = isCard && statementDay ? Math.max(1, Math.min(30, Math.round(Number(statementDay)))) : null;
     const dDays = isCard && dueDays !== '' ? Math.max(0, Math.round(Number(dueDays))) : null;
+    // Resolve the shared line: create one if asked, else use the picked id, else none.
+    let lineId: string | null = null;
+    if (isCard && lineChoice === '__new') {
+      lineId = app.addCreditLine({ bank: newLineBank.trim() || name.trim() || 'Card', sharedLimit: Math.abs(Number(newLineLimit)) || 0, currency });
+    } else if (isCard && lineChoice) {
+      lineId = lineChoice;
+    }
+    // creditLimit means the card's OWN limit when unlinked, an optional sub-cap when linked.
+    const limitVal = isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined;
     if (isEdit && a) {
       app.updateAccount(a.id, {
         name: name.trim(),
         group,
         currency,
         last4: isWallet ? null : clean4 || null,
-        creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
+        creditLimit: limitVal,
         dueDate: isCard ? (dueDate || null) : null,
         statementDay: stmtDay,
         dueDays: dDays,
+        creditLineId: isCard ? lineId : null,
       });
       app.toast('Account updated');
     } else {
@@ -107,10 +125,11 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
         currency,
         balance: balance === '' ? 0 : Number(balance),
         openingDate: openingDate || undefined,
-        creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
+        creditLimit: limitVal,
         last4: isWallet ? undefined : clean4,
         ...(stmtDay != null ? { statementDay: stmtDay } : {}),
         ...(dDays != null ? { dueDays: dDays } : {}),
+        ...(lineId ? { creditLineId: lineId } : {}),
       });
       app.toast('Account added');
     }
@@ -138,7 +157,22 @@ export function AccountForm({ state, onClose, onDelete }: { state: AccountFormSt
         )}
         {isCard && (
           <>
-            <Field label="Credit limit"><input style={inputStyle} value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="e.g. 15000" inputMode="numeric" /></Field>
+            <Field label="Shares a limit with another card?">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button className="chip-btn" style={{ padding: '8px 11px', ...(lineChoice === '' ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }} onClick={() => setLineChoice('')}>On its own limit</button>
+                {app.creditLines.map((l) => (
+                  <button key={l.id} className="chip-btn" style={{ padding: '8px 11px', ...(lineChoice === l.id ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }} onClick={() => setLineChoice(l.id)}>{l.name || `${l.bank} line`}</button>
+                ))}
+                <button className="chip-btn" style={{ padding: '8px 11px', ...(lineChoice === '__new' ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }} onClick={() => setLineChoice('__new')}>+ New shared line</button>
+              </div>
+            </Field>
+            {lineChoice === '__new' && (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Field label="Line bank / name"><input style={inputStyle} value={newLineBank} onChange={(e) => setNewLineBank(e.target.value)} placeholder="e.g. Mashreq" /></Field>
+                <Field label="Shared limit"><input style={inputStyle} value={newLineLimit} onChange={(e) => setNewLineLimit(e.target.value)} placeholder="e.g. 50000" inputMode="numeric" /></Field>
+              </div>
+            )}
+            <Field label={linked ? 'Per-card cap (optional)' : "This card's own limit"}><input style={inputStyle} value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder={linked ? 'leave blank for no cap' : 'e.g. 15000'} inputMode="numeric" /></Field>
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="Statement day (1–30)"><input style={inputStyle} value={statementDay} onChange={(e) => setStatementDay(e.target.value)} placeholder="e.g. 25" inputMode="numeric" /></Field>
               <Field label="Due (days after)"><input style={inputStyle} value={dueDays} onChange={(e) => setDueDays(e.target.value)} placeholder="e.g. 21" inputMode="numeric" /></Field>

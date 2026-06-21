@@ -7,6 +7,7 @@ import { CatIcon, Icons } from '../components/Icons';
 import { Bar, SectionHead } from '../components/ui';
 import { AccountForm } from '../components/AccountForm';
 import type { AccountFormState } from '../components/AccountForm';
+import { CreditLineCard } from '../components/CreditLineCard';
 import { useApp } from '../state/AppContext';
 
 const GROUPS: [AccountGroup, string][] = [
@@ -45,8 +46,14 @@ export function AccountsScreen() {
         const list = accounts.filter((a) => (a.group || 'bank') === gid);
         if (!list.length) return null;
         const sub = list.reduce((s, a) => s + toAED(a), 0);
-        const cardUsed = list.reduce((s, a) => s + (a.creditLimit ? Math.max(0, -a.balance) : 0), 0);
-        const cardLimit = list.reduce((s, a) => s + (a.creditLimit || 0), 0);
+        // Cards on a shared line render grouped; the rest in the flat grid as before.
+        const lines = gid === 'card'
+          ? app.creditLines.filter((l) => list.some((a) => a.creditLineId === l.id))
+          : [];
+        const flat = gid === 'card' ? list.filter((a) => !a.creditLineId || !lines.some((l) => l.id === a.creditLineId)) : list;
+        // Line-aware totals: a shared limit counts once; unlinked cards count their own.
+        const cardUsed = list.reduce((s, a) => s + (a.creditLimit || a.creditLineId ? Math.max(0, -a.balance) : 0), 0);
+        const cardLimit = lines.reduce((s, l) => s + l.sharedLimit, 0) + flat.reduce((s, a) => s + (a.creditLimit || 0), 0);
         const cardUtil = cardLimit ? cardUsed / cardLimit : 0;
         return (
           <div key={gid}>
@@ -71,8 +78,17 @@ export function AccountsScreen() {
                 <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, marginTop: 5 }}>{Math.round(cardUtil * 100)}% of total limit · {fmt(Math.max(0, cardLimit - cardUsed), cur)} available</div>
               </div>
             )}
+            {lines.map((l) => (
+              <CreditLineCard
+                key={l.id}
+                line={l}
+                members={list.filter((a) => a.creditLineId === l.id)}
+                currency={cur}
+                onOpen={(id) => app.openAccount(id)}
+              />
+            ))}
             <div className="acct-grid">
-              {list.map((a) => {
+              {flat.map((a) => {
                 const used = a.creditLimit ? Math.max(0, -a.balance) : 0;
                 const util = a.creditLimit ? Math.min(1, used / a.creditLimit) : 0;
                 const utilColor = util < 0.3 ? '#9ED88B' : util < 0.7 ? '#F2C879' : '#F1A38C';

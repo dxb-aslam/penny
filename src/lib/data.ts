@@ -4,6 +4,7 @@ import type {
   Category,
   CategoryId,
   CategoryNode,
+  CreditLine,
   Currency,
   CurrencyCode,
   Emi,
@@ -332,6 +333,18 @@ export function allAccounts(): Account[] {
 
 export function findAccount(id: string): Account | undefined {
   return allAccounts().find((a) => a.id === id);
+}
+
+// ---- shared credit lines (user-created; no seed) ----
+export function allCreditLines(): CreditLine[] {
+  return LS.read<CreditLine[]>('creditLines', []);
+}
+export function getCreditLine(id: string | null | undefined): CreditLine | undefined {
+  return id ? allCreditLines().find((l) => l.id === id) : undefined;
+}
+/** Member cards on a line (defaults to the live account list). */
+export function accountsOnLine(lineId: string, accounts?: Account[]): Account[] {
+  return (accounts ?? allAccounts()).filter((a) => a.creditLineId === lineId);
 }
 
 /** Resolve a free-text reference (from chat) to an account — by name, last4, or fuzzy contains. */

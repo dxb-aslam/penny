@@ -1,6 +1,7 @@
 // Penny — account dashboard: balance, recent transactions, view-all, edit.
 import { useState } from 'react';
 import { CATS, acctMask, accountInitials, cardDue, dayLabel, fmt, txnDir, txnTouchesAccount } from '../lib/data';
+import { cardCredit } from '../lib/finance';
 import { categoryBreakdown } from '../lib/ledger';
 import type { CurrencyCode } from '../lib/types';
 import { CatIcon, Icons } from '../components/Icons';
@@ -104,8 +105,10 @@ export function AccountView() {
   const [confirmDel, setConfirmDel] = useState(false);
 
   const open = !!accountViewId && !!account;
-  const used = account?.creditLimit ? Math.max(0, -account.balance) : 0;
-  const util = account?.creditLimit ? Math.min(1, used / account.creditLimit) : 0;
+  // Credit headline: line-level when the card shares a limit, per-card otherwise.
+  const credit = account ? cardCredit(account, app.creditLines, app.accounts) : null;
+  const util = credit?.utilization ?? 0;
+  const otherMembers = credit?.line ? credit.members.filter((m) => m.id !== account!.id) : [];
 
   return (
     <div className={`ledger-overlay${open ? ' open' : ''}`}>
@@ -138,14 +141,20 @@ export function AccountView() {
             <div className="amount h-display" style={{ fontSize: 32, fontWeight: 700, marginTop: 12 }}>
               {fmt(account.balance, account.currency || currency)}
             </div>
-            {account.creditLimit ? (
+            {credit ? (
               <div style={{ marginTop: 8 }}>
                 <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
                   <div style={{ width: `${util * 100}%`, height: '100%', background: util < 0.3 ? '#9ED88B' : util < 0.7 ? '#F2C879' : '#F1A38C' }} />
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600, marginTop: 4 }}>
-                  {fmt(Math.max(0, account.creditLimit - used), account.currency || currency)} available · {Math.round(util * 100)}% used
+                  {fmt(credit.available, account.currency || currency)} available · {Math.round(util * 100)}% used
                 </div>
+                {credit.line ? (
+                  <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600, marginTop: 4, lineHeight: 1.45 }}>
+                    Shares a {fmt(credit.limit, account.currency || currency)} limit{otherMembers.length ? ` with ${otherMembers.map((m) => m.name).join(', ')}` : ''} · {fmt(credit.available, account.currency || currency)} available across the line.
+                    {credit.subCap != null ? ` This card capped at ${fmt(credit.subCap, account.currency || currency)}.` : ''}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {isCard && due ? (

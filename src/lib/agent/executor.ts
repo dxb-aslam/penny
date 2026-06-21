@@ -12,6 +12,7 @@ export const INPUT_COLUMNS: Record<string, string[]> = {
   grocery_item: ['list_id', 'name', 'qty', 'note'],
   category: ['label', 'subs'],
   transfer: ['from', 'to', 'amount', 'charge'],
+  credit_line: ['bank', 'name', 'sharedLimit', 'currency', 'note'],
 };
 export const WRITABLE_TABLES = [...Object.keys(INPUT_COLUMNS), 'shopping_list', 'profile'];
 export const READABLE_TABLES = [...WRITABLE_TABLES, 'master_item', 'chat', 'chat_summary', 'account_change'];

@@ -26,6 +26,7 @@ import { checkShared, type SharedPayload } from '../lib/share';
 import type {
   Account,
   AccountChange,
+  CreditLine,
   CategoryNode,
   CurrencyCode,
   Emi,
@@ -160,6 +161,10 @@ export interface AppApi {
   // designated savings account (emergency fund + generic saving)
   savingsAccountId: string | null;
   setSavingsAccount: (id: string | null) => void;
+  creditLines: CreditLine[];
+  addCreditLine: (l: Omit<CreditLine, 'id' | 'createdAt'>) => string;
+  updateCreditLine: (id: string, changes: Partial<CreditLine>) => void;
+  removeCreditLine: (id: string) => void;
   // notification center (nudges + alerts)
   notificationsOpen: boolean;
   openNotifications: () => void;
@@ -452,6 +457,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAcctVersion((v) => v + 1);
   }, []);
 
+  // ---- shared credit lines (cards sharing one limit) ----
+  const [creditLines, setCreditLines] = useState<CreditLine[]>(() => LS.read<CreditLine[]>('creditLines', []));
+  const addCreditLine = useCallback((l: Omit<CreditLine, 'id' | 'createdAt'>) => {
+    const id = 'cl' + Date.now();
+    setCreditLines((cur) => { const next = [...cur, { ...l, id, createdAt: Date.now() }]; LS.write('creditLines', next); return next; });
+    return id;
+  }, []);
+  const updateCreditLine = useCallback((id: string, changes: Partial<CreditLine>) => {
+    setCreditLines((cur) => { const next = cur.map((l) => (l.id === id ? { ...l, ...changes } : l)); LS.write('creditLines', next); return next; });
+  }, []);
+  const removeCreditLine = useCallback((id: string) => {
+    // Unlink any member cards first (they revert to their own limit), then drop the line.
+    const overrides = LS.read<Record<string, Partial<Account>>>('accountOverrides', {});
+    let touched = false;
+    for (const a of allAccounts()) {
+      if (a.creditLineId === id) { overrides[a.id] = { ...overrides[a.id], creditLineId: null }; touched = true; }
+    }
+    if (touched) { LS.write('accountOverrides', overrides); setAcctVersion((v) => v + 1); }
+    setCreditLines((cur) => { const next = cur.filter((l) => l.id !== id); LS.write('creditLines', next); return next; });
+  }, []);
+
   // ---- shopping lists (multiple) + master catalog with learned prices ----
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>(() => {
     const saved = LS.read<ShoppingList[]>('shoppingLists', []);
@@ -586,6 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTxnOverrides(LS.read('txnOverrides', {}));
     setRemovedTxns(LS.read<string[]>('removedTxns', []));
     setAcctHistory(LS.read<AccountChange[]>('acctHistory', []));
+    setCreditLines(LS.read<CreditLine[]>('creditLines', []));
     setTracked(LS.read<TrackedItem[]>('tracked', []));
     setSettledReimbursements(LS.read<string[]>('settledReimb', []));
     setCurrency(LS.read<CurrencyCode>('currency', 'AED'));
@@ -785,6 +812,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setMenuOpen(true);
     },
     closeMenu: () => setMenuOpen(false),
+    creditLines,
+    addCreditLine,
+    updateCreditLine,
+    removeCreditLine,
     savingsAccountId,
     setSavingsAccount: (id: string | null) => {
       setSavingsAccountId(id);
