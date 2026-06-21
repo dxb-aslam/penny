@@ -6,6 +6,7 @@ import {
   LS,
   USER_ACCT_BGS,
   allAccounts,
+  demoOff,
   fmt,
   allEmis,
   allSubs,
@@ -19,7 +20,6 @@ import {
 } from '../lib/data';
 import { sync, syncWriteHook, type SyncState } from '../lib/sync';
 import { hasSupabase } from '../lib/config';
-import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { checkShared, type SharedPayload } from '../lib/share';
 import type {
@@ -308,7 +308,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [removedTxns, setRemovedTxns] = useState<string[]>(() => LS.read<string[]>('removedTxns', []));
   const txns = useMemo(() => {
     const removed = new Set(removedTxns);
-    return [...userTxns, ...seedTxns]
+    const seed = demoOff() ? [] : seedTxns;
+    return [...userTxns, ...seed]
       .filter((t) => !removed.has(t.id))
       .map((t) => (txnOverrides[t.id] ? { ...t, ...txnOverrides[t.id] } : t));
   }, [userTxns, txnOverrides, removedTxns]);
@@ -431,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>(() => {
     const saved = LS.read<ShoppingList[]>('shoppingLists', []);
     if (saved.length) return saved;
-    const legacy = LS.read<GroceryItem[]>('grocery', GROCERY);
+    const legacy = LS.read<GroceryItem[]>('grocery', demoOff() ? [] : GROCERY);
     return [{ id: 'sl' + Date.now(), name: 'Shopping list', status: 'open', createdAt: Date.now(), items: legacy }];
   });
   const [master, setMaster] = useState<MasterItem[]>(() => LS.read<MasterItem[]>('shoppingMaster', []));
@@ -787,15 +788,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         Object.keys(localStorage)
           .filter((k) => k.startsWith('penny.'))
           .forEach((k) => localStorage.removeItem(k));
+        // Set AFTER the wipe so it survives: suppresses the demo seed data so the
+        // app comes back genuinely empty (not repopulated with sample accounts/txns).
+        localStorage.setItem('penny.noDemo', 'true');
       } catch {
         /* ignore */
       }
-      // Next launch starts fresh at onboarding. Exit on device; reload on web.
-      if (Capacitor.isNativePlatform()) {
-        void CapApp.exitApp();
-      } else {
-        setTimeout(() => window.location.reload(), 150);
-      }
+      // Hard reload (all platforms) — a fresh JS context re-reads the cleared
+      // storage and lands on onboarding. (exitApp could warm-restart with stale
+      // in-memory state, so the wipe wouldn't show.)
+      setTimeout(() => window.location.reload(), 120);
     },
     profileOpen,
     openProfile: () => setProfileOpen(true),

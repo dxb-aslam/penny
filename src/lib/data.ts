@@ -301,11 +301,18 @@ export const TXN_TAGS: Record<TxnTag, { label: string; color: string; tint: stri
 };
 export const TXN_TAG_IDS = Object.keys(TXN_TAGS) as TxnTag[];
 
+/** After "Clear all data" the app starts genuinely empty — no demo seed accounts/
+ *  txns/EMIs/subs/grocery. The flag is set on clear and survives it. */
+export function demoOff(): boolean {
+  return LS.read<boolean>('noDemo', false);
+}
+
 export function allAccounts(): Account[] {
   // edits (seed or user accounts) live in an overrides map keyed by id
   const overrides = LS.read<Record<string, Partial<Account>>>('accountOverrides', {});
   const removed = new Set(LS.read<string[]>('removedAccounts', []));
-  const base = [...ACCOUNTS, ...LS.read<Account[]>('userAccounts', [])];
+  const seed = demoOff() ? [] : ACCOUNTS;
+  const base = [...seed, ...LS.read<Account[]>('userAccounts', [])];
   return base
     .filter((a) => !removed.has(a.id))
     .map((a) => (overrides[a.id] ? { ...a, ...overrides[a.id] } : a));
@@ -351,7 +358,8 @@ function merge<T extends { id: string }>(seed: T[], overKey: string, userKey: st
   const ov = LS.read<Record<string, Partial<T>>>(overKey, {});
   const removed = new Set(LS.read<string[]>(removedKey, []));
   const user = LS.read<T[]>(userKey, []);
-  return [...seed, ...user].filter((x) => !removed.has(x.id)).map((x) => (ov[x.id] ? { ...x, ...ov[x.id] } : x));
+  const base = demoOff() ? [] : seed;
+  return [...base, ...user].filter((x) => !removed.has(x.id)).map((x) => (ov[x.id] ? { ...x, ...ov[x.id] } : x));
 }
 
 export function allEmis(): Emi[] {
