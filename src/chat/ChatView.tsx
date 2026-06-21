@@ -248,6 +248,11 @@ export function ChatView() {
 
     // Offline / parse fallback — heuristic on the message so the UI never dead-ends.
     if (!out.live) {
+      // A bare number (no merchant) is ambiguous even offline — ask, never auto-log.
+      if (/^[\d\s.,/-]+$/.test(text.trim())) {
+        push({ role: 'agent', type: 'text', text: `Just to be sure — is ${text.trim()} an expense? If so, tell me what it was (e.g. "lunch ${text.trim()}"). If you meant something else — a card's last 4 digits, an account balance — just say so.` });
+        return;
+      }
       const fb = localParse(text);
       if (fb.expense && fb.expense.total > 0) { if (fb.reply) push({ role: 'agent', type: 'text', text: fb.reply }); pushExpenseCard(fb.expense, false); }
       else push({ role: 'agent', type: 'text', text: fb.reply || "I couldn't reach the AI just now — try again in a moment, or add it manually." });
