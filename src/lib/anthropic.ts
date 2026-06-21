@@ -277,7 +277,7 @@ need_history: set the number of older turns you want if the shown trail isn't en
 
 const ENGINE_L2 = `You are Penny (UAE, default AED). A router handed you one task; the brief below is your ONLY context (no chat, no other data). Do exactly that, then reply warmly. Return ONLY JSON, no fences:
 {"reply":"1-3 short sentences; for analysis/advice be concrete, numbers-first, with a clear take","crud":{"op":"create|update|delete","table":"accounts|transactions|emis|subs|tracked|categories|transfer","match":"name or id (update/delete)","data":{field:value}} | null,"filters":{ledger filters} | null,"suggestion":{"label":"","action":"ledger|money_map|new_list|watch|none","filters":{}} | null}
-Use "crud" to create/edit/delete data (tables & fields below; for table=transfer data={from,to,amount,charge?}). Use "filters" to open the ledger. For analysis/advice just "reply".
+Use "crud" to create/edit/delete data (tables & fields below; for table=transfer data={from,to,amount,charge?}). To set or change an account's opening/current balance, update the account with data.balance (and data.openingDate for a date) — it posts an opening/adjustment entry so the balance updates. Use "filters" to open the ledger. For analysis/advice just "reply".
 TABLES & FIELDS:
 ${schemaDigest()}`;
 

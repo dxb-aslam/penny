@@ -95,8 +95,20 @@ const accountSpec: TableSpec<Account> = {
   // Opening fields blank on edit — balance derives from transactions, not the form.
   toForm: (r) => ({ name: r.name, group: r.group, currency: r.currency || 'AED', balance: '', openingDate: '', creditLimit: r.creditLimit, dueDate: r.dueDate || '', last4: r.last4 || '' }),
   create: (app, v) => app.addAccount({ name: str(v.name) || 'Account', group: oneOf<AccountGroup>(v.group, GROUPS, 'bank'), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), openingDate: v.openingDate ? str(v.openingDate) : undefined, creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || undefined }),
-  // Balance is derived from transactions, so editing never sets it directly.
-  update: (app, r, v) => app.updateAccount(r.id, { name: str(v.name), group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null }),
+  // Balance is derived from transactions. If a balance is given (e.g. via chat
+  // "set the opening balance to X"), reconcile it by posting an opening/adjustment
+  // entry so the derived balance matches — rather than silently ignoring it.
+  update: (app, r, v) => {
+    app.updateAccount(r.id, { name: str(v.name) || r.name, group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null });
+    if (v.balance != null && v.balance !== '') {
+      const delta = num(v.balance) - r.balance;
+      if (Math.abs(delta) >= 0.005) {
+        const hasTxns = app.txns.some((t) => t.account === r.id || t.counterAccount === r.id);
+        const ts = v.openingDate ? (Date.parse(str(v.openingDate)) || undefined) : undefined;
+        app.addTxn({ merchant: hasTxns ? 'Balance adjustment' : 'Opening balance', cat: delta >= 0 ? 'income' : 'other', amount: Math.abs(delta), account: r.id, nec: 5, income: delta >= 0, byPenny: false, ts });
+      }
+    }
+  },
   remove: (app, r) => app.removeAccount(r.id),
   // Deleting an account also removes its transactions, so no ref-count block.
 };
