@@ -61,9 +61,11 @@ export function ManualEntry() {
   const [calc, setCalc] = useState<Calc>({ acc: null, op: null, buf: '' });
   const [merchant, setMerchant] = useState('');
   const [cat, setCat] = useState<string>('food');
-  const [account, setAccount] = useState(app.accounts[0]?.id || 'cash');
+  const [account, setAccount] = useState(app.accounts[0]?.id || '');
+  const [toAccount, setToAccount] = useState(app.accounts[1]?.id || '');
   const [nec, setNec] = useState(5);
-  const [income, setIncome] = useState(false);
+  const [kind, setKind] = useState<'expense' | 'income' | 'transfer'>('expense');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [tag, setTag] = useState<'' | TxnTag>('');
   const [attrOn, setAttrOn] = useState(false);
   const [attrMode, setAttrMode] = useState<AttributionMode>('company');
@@ -71,24 +73,34 @@ export function ManualEntry() {
   const [seed, setSeed] = useState(open);
   if (open !== seed) {
     setSeed(open);
-    if (open) { setCalc({ acc: null, op: null, buf: '' }); setMerchant(''); setCat('food'); setAccount(app.accounts[0]?.id || 'cash'); setNec(5); setIncome(false); setTag(''); setAttrOn(false); setAttrMode('company'); setWho(''); }
+    if (open) { setCalc({ acc: null, op: null, buf: '' }); setMerchant(''); setCat('food'); setAccount(app.accounts[0]?.id || ''); setToAccount(app.accounts[1]?.id || ''); setNec(5); setKind('expense'); setDate(new Date().toISOString().slice(0, 10)); setTag(''); setAttrOn(false); setAttrMode('company'); setWho(''); }
   }
 
+  const income = kind === 'income';
+  const isTransfer = kind === 'transfer';
   const amount = calcValue(calc);
   const save = () => {
     if (amount <= 0) { app.toast('Enter an amount'); return; }
-    app.addTxn({
-      merchant: merchant.trim() || (income ? 'Income' : 'Expense'),
-      cat: (income ? 'income' : cat) as CategoryId,
-      amount,
-      account,
-      nec,
-      byPenny: false,
-      ...(income ? { income: true } : {}),
-      ...(tag ? { tag } : {}),
-      ...(attrOn && attrMode !== 'self' ? { attribution: { mode: attrMode, who: who.trim() || undefined } } : {}),
-    });
-    app.toast('Logged ' + fmt(amount, app.currency));
+    const ts = Date.parse(date) || undefined; // NaN → undefined → addTxn defaults to now
+    if (isTransfer) {
+      if (!account || !toAccount || account === toAccount) { app.toast('Pick two different accounts'); return; }
+      app.addTransfer(account, toAccount, amount, merchant.trim() || undefined);
+      app.toast('Transfer logged');
+    } else {
+      app.addTxn({
+        merchant: merchant.trim() || (income ? 'Income' : 'Expense'),
+        cat: (income ? 'income' : cat) as CategoryId,
+        amount,
+        account,
+        nec,
+        ts,
+        byPenny: false,
+        ...(income ? { income: true } : {}),
+        ...(tag ? { tag } : {}),
+        ...(attrOn && attrMode !== 'self' ? { attribution: { mode: attrMode, who: who.trim() || undefined } } : {}),
+      });
+      app.toast('Logged ' + fmt(amount, app.currency));
+    }
     app.closeManual();
   };
 
@@ -101,10 +113,20 @@ export function ManualEntry() {
             <div className="h-display" style={{ fontSize: 19 }}>Add manually</div>
             <div style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>No AI — quick keypad entry</div>
           </div>
-          <button className="chip-btn" onClick={() => setIncome((v) => !v)} style={income ? { background: 'var(--sage-tint)', borderColor: 'var(--sage)', color: 'var(--sage-deep)' } : {}}>{income ? 'Income' : 'Expense'}</button>
         </div>
-        <div className="amount h-display" style={{ fontSize: 36, fontWeight: 700, marginTop: 10, textAlign: 'right', color: income ? 'var(--sage-deep)' : 'var(--ink)' }}>
-          {income ? '+' : ''}{calcDisplay(calc)}<span style={{ fontSize: 16, color: 'var(--muted)', marginLeft: 6 }}>{app.currency}</span>
+        {/* income / expense / transfer */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          {(['expense', 'income', 'transfer'] as const).map((k) => {
+            const on = kind === k;
+            const c = k === 'income' ? 'var(--sage)' : k === 'transfer' ? 'var(--amber)' : 'var(--coral)';
+            const tint = k === 'income' ? 'var(--sage-tint)' : k === 'transfer' ? 'var(--amber-tint)' : 'var(--coral-tint, #F8E2D8)';
+            return (
+              <button key={k} onClick={() => setKind(k)} className="chip-btn" style={{ flex: 1, justifyContent: 'center', padding: '9px 0', fontWeight: 800, textTransform: 'capitalize', ...(on ? { background: tint, borderColor: c, color: c } : {}) }}>{k}</button>
+            );
+          })}
+        </div>
+        <div className="amount h-display" style={{ fontSize: 36, fontWeight: 700, marginTop: 10, textAlign: 'right', color: income ? 'var(--sage-deep)' : isTransfer ? 'var(--amber-deep)' : 'var(--coral-deep)' }}>
+          {income ? '+' : isTransfer ? '⇄' : '−'}{calcDisplay(calc)}<span style={{ fontSize: 16, color: 'var(--muted)', marginLeft: 6 }}>{app.currency}</span>
         </div>
       </div>
 
@@ -130,9 +152,14 @@ export function ManualEntry() {
 
         {/* details */}
         <div style={{ padding: '8px 16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input className="es-input" style={{ width: 'auto', textAlign: 'left' }} placeholder={income ? 'Source (e.g. Salary)' : 'Merchant'} value={merchant} onChange={(e) => setMerchant(e.target.value)} />
+          <input className="es-input" style={{ width: 'auto', textAlign: 'left' }} placeholder={isTransfer ? 'Note (optional)' : income ? 'Source (e.g. Salary)' : 'Merchant'} value={merchant} onChange={(e) => setMerchant(e.target.value)} />
 
-          {!income && (
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Date</div>
+            <input className="es-input" type="date" style={{ width: 'auto', textAlign: 'left' }} value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+
+          {kind === 'expense' && (
             <div>
               <div className="eyebrow" style={{ marginBottom: 6 }}>Category</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -144,7 +171,7 @@ export function ManualEntry() {
           )}
 
           <div>
-            <div className="eyebrow" style={{ marginBottom: 6 }}>Account</div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>{isTransfer ? 'From' : 'Account'}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {app.accounts.map((a) => (
                 <button key={a.id} className="chip-btn" style={{ padding: '5px 11px', fontSize: 12, ...(account === a.id ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }} onClick={() => setAccount(a.id)}>{a.name}</button>
@@ -152,7 +179,18 @@ export function ManualEntry() {
             </div>
           </div>
 
-          {!income && (
+          {isTransfer && (
+            <div>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>To</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {app.accounts.filter((a) => a.id !== account).map((a) => (
+                  <button key={a.id} className="chip-btn" style={{ padding: '5px 11px', fontSize: 12, ...(toAccount === a.id ? { background: 'var(--amber-tint)', borderColor: 'var(--amber)', color: 'var(--amber-deep)' } : {}) }} onClick={() => setToAccount(a.id)}>{a.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {kind === 'expense' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span className="eyebrow">Necessity</span>
@@ -163,7 +201,7 @@ export function ManualEntry() {
           )}
 
           {/* attribution */}
-          {!income && (
+          {kind === 'expense' && (
             <div className="card" style={{ padding: '12px 14px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                 <span className={`groc-check${attrOn ? ' on' : ''}`} onClick={() => setAttrOn((v) => !v)} style={{ width: 20, height: 20, flexShrink: 0 }}>{attrOn && <Icons.check size={12} color="#fff" sw={2.8} />}</span>
@@ -184,7 +222,7 @@ export function ManualEntry() {
           )}
 
           {/* optional debt tag */}
-          {!income && (
+          {kind === 'expense' && (
             <div>
               <div className="eyebrow" style={{ marginBottom: 6 }}>Tag (optional)</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -195,7 +233,7 @@ export function ManualEntry() {
             </div>
           )}
 
-          <button className="xp-save" style={{ width: '100%', borderRadius: 14, padding: 13, marginTop: 4 }} onClick={save}>Save {income ? 'income' : 'expense'} · {fmt(amount, app.currency)}</button>
+          <button className="xp-save" style={{ width: '100%', borderRadius: 14, padding: 13, marginTop: 4 }} onClick={save}>Save {kind} · {fmt(amount, app.currency)}</button>
         </div>
       </div>
     </div>

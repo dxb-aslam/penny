@@ -12,6 +12,7 @@ import { Bar, SectionHead } from '../components/ui';
 import { useApp } from '../state/AppContext';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const NOW = Date.now(); // captured at module load — stable across renders (purity)
 
 interface CachedDigest { text: string; live: boolean; when: string }
 
@@ -78,6 +79,32 @@ export function CoachScreen() {
   }, [app.txns]);
   const cfMax = Math.max(1, ...cashflow.map((m) => Math.max(m.out, m.in)));
   const cfNet = cashflow.reduce((s, m) => s + (m.in - m.out), 0);
+
+  // Coach needs a few days of real entries before its read means anything.
+  const firstUse = LS.read<string>('firstUse', '');
+  const daysIn = firstUse ? Math.floor((NOW - Date.parse(firstUse)) / 86400000) : 999;
+  const daysLeft = 3 - daysIn;
+  if (daysLeft > 0) {
+    return (
+      <div className="screen">
+        <div className="home-head" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AgentAvatar size={44} />
+          <div>
+            <div className="h-display" style={{ fontSize: 24 }}>Coach</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Your financial health, tracked</div>
+          </div>
+        </div>
+        <div style={{ margin: 'auto 24px', textAlign: 'center', padding: '60px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <AgentAvatar size={72} />
+          <div className="h-display" style={{ fontSize: 22 }}>Not enough to go on yet</div>
+          <div style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6, maxWidth: 300 }}>
+            Keep logging for a few days and I'll read your money properly — health score, savings, trends and honest nudges.
+            <br /><br />Come back in <b>{daysLeft} {daysLeft === 1 ? 'day' : 'days'}</b>.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen">

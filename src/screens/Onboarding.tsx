@@ -15,6 +15,7 @@ export function Onboarding() {
   const [name, setName] = useState('');
   const [cur, setCur] = useState<CurrencyCode>('AED');
   const [key, setKey] = useState('');
+  const [openDate, setOpenDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   if (app.onboarded) return null;
 
@@ -26,6 +27,9 @@ export function Onboarding() {
     app.setCurrency(cur);
     try {
       if (key.trim()) localStorage.setItem('penny.apiKey', key.trim());
+      // Default opening date for new accounts + the "first use" anchor for Coach's 3-day gate.
+      localStorage.setItem('penny.openingDate', JSON.stringify(openDate));
+      localStorage.setItem('penny.firstUse', JSON.stringify(new Date().toISOString().slice(0, 10)));
     } catch {
       /* ignore */
     }
@@ -76,6 +80,16 @@ export function Onboarding() {
                 <button key={c} className="chip-btn" style={{ flex: 1, padding: '11px 0', justifyContent: 'center', fontWeight: 800, ...(cur === c ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }} onClick={() => setCur(c)}>{c}</button>
               ))}
             </div>
+
+            <div className="eyebrow" style={{ margin: '20px 0 8px' }}>Tracking from</div>
+            <input
+              type="date"
+              value={openDate}
+              onChange={(e) => setOpenDate(e.target.value)}
+              className="es-input"
+              style={{ width: '100%', fontSize: 15, padding: '13px 15px' }}
+            />
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>Your accounts' opening balances will be dated here (you can change it per account).</div>
           </div>
         )}
 

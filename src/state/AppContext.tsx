@@ -49,6 +49,7 @@ export interface NewTxn {
   amount: number;
   account: string;
   nec: number;
+  ts?: number; // optional explicit timestamp (backdating); defaults to now
   items?: Txn['items'];
   byPenny?: boolean;
   income?: boolean;
@@ -316,7 +317,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [userTxns, txnOverrides, removedTxns]);
   const addTxn = useCallback((x: NewTxn): string => {
     const id = 'u' + Date.now();
-    const txn: Txn = { id, ts: Date.now(), ...x };
+    const txn: Txn = { id, ...x, ts: x.ts ?? Date.now() };
     setUserTxns((cur) => {
       const next = [txn, ...cur];
       LS.write('userTxns', next);

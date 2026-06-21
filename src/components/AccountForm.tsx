@@ -1,0 +1,148 @@
+// Penny — one universal account form for create + edit. Type selector on top,
+// then currency, then fields shown conditionally by type. Opening balance is
+// posted as a dated entry (create only), defaulting to the user's opening date.
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import type { Account, AccountGroup, CurrencyCode } from '../lib/types';
+import { LS } from '../lib/data';
+import { Icons } from '../components/Icons';
+import { useApp } from '../state/AppContext';
+
+const GROUPS: { id: AccountGroup; label: string }[] = [
+  { id: 'bank', label: 'Bank' },
+  { id: 'card', label: 'Card' },
+  { id: 'wallet', label: 'Cash / Wallet' },
+];
+const CURRENCIES: CurrencyCode[] = ['AED', 'USD', 'EUR', 'INR'];
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const inputStyle: React.CSSProperties = { width: '100%', border: '1.5px solid var(--line-strong)', background: '#fff', borderRadius: 11, padding: '11px 13px', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', outline: 'none' };
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="eyebrow" style={{ marginBottom: 6, fontSize: 10.5 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+function Seg({ options, value, onChange }: { options: { id: string; label: string }[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {options.map((o) => (
+        <button key={o.id} onClick={() => onChange(o.id)} className="chip-btn" style={{ flex: 1, justifyContent: 'center', padding: '10px 0', fontWeight: 700, ...(value === o.id ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }}>{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+export interface AccountFormState {
+  mode: 'create' | 'edit';
+  account?: Account;       // edit: the record; create: undefined
+  group?: AccountGroup;    // create: preselected type
+}
+
+export function AccountForm({ state, onClose, onDelete }: { state: AccountFormState | null; onClose: () => void; onDelete?: () => void }) {
+  const app = useApp();
+  const open = !!state;
+  const a = state?.account;
+  const isEdit = state?.mode === 'edit';
+
+  const [seed, setSeed] = useState<AccountFormState | null>(null);
+  const [group, setGroup] = useState<AccountGroup>('bank');
+  const [name, setName] = useState('');
+  const [currency, setCurrency] = useState<CurrencyCode>('AED');
+  const [last4, setLast4] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [balance, setBalance] = useState('');
+  const [openingDate, setOpeningDate] = useState('');
+
+  // re-seed whenever the form (re)opens or switches record
+  if (state !== seed) {
+    setSeed(state);
+    if (state) {
+      setGroup(a?.group || state.group || 'bank');
+      setName(a?.name || '');
+      setCurrency(a?.currency || app.currency || 'AED');
+      setLast4(a?.last4 || '');
+      setCreditLimit(a?.creditLimit ? String(a.creditLimit) : '');
+      setDueDate(a?.dueDate || '');
+      setBalance('');
+      setOpeningDate(LS.read<string>('openingDate', '') || todayISO());
+    }
+  }
+
+  const isCard = group === 'card';
+  const isWallet = group === 'wallet';
+  const canSave = name.trim().length > 0;
+
+  const submit = () => {
+    const clean4 = last4.replace(/\D/g, '').slice(0, 4) || undefined;
+    if (isEdit && a) {
+      app.updateAccount(a.id, {
+        name: name.trim(),
+        group,
+        currency,
+        last4: isWallet ? null : clean4 || null,
+        creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
+        dueDate: isCard ? (dueDate || null) : null,
+      });
+      app.toast('Account updated');
+    } else {
+      app.addAccount({
+        name: name.trim() || 'Account',
+        group,
+        currency,
+        balance: balance === '' ? 0 : Number(balance),
+        openingDate: openingDate || undefined,
+        creditLimit: isCard && creditLimit ? Math.abs(Number(creditLimit)) : undefined,
+        last4: isWallet ? undefined : clean4,
+      });
+      app.toast('Account added');
+    }
+    onClose();
+  };
+
+  const remove = () => {
+    onClose();
+    if (onDelete) onDelete();
+    else if (a) { app.removeAccount(a.id); app.toast('Account deleted'); }
+  };
+
+  return (
+    <>
+      <div className={`sheet-dim${open ? ' open' : ''}`} onClick={onClose} />
+      <div className={`sheet${open ? ' open' : ''}`} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="h-display" style={{ fontSize: 17, padding: '0 2px 14px' }}>{isEdit ? 'Edit account' : 'New account'}</div>
+
+        <Field label="Type"><Seg options={GROUPS} value={group} onChange={(v) => setGroup(v as AccountGroup)} /></Field>
+        <Field label="Currency"><Seg options={CURRENCIES.map((c) => ({ id: c, label: c }))} value={currency} onChange={(v) => setCurrency(v as CurrencyCode)} /></Field>
+        <Field label="Name"><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder={isCard ? 'e.g. ENBD Visa' : isWallet ? 'e.g. Cash' : 'e.g. Emirates NBD'} /></Field>
+
+        {!isWallet && (
+          <Field label="Last 4 digits (optional)"><input style={inputStyle} value={last4} onChange={(e) => setLast4(e.target.value)} placeholder="0000" inputMode="numeric" /></Field>
+        )}
+        {isCard && (
+          <>
+            <Field label="Credit limit"><input style={inputStyle} value={creditLimit} onChange={(e) => setCreditLimit(e.target.value)} placeholder="e.g. 15000" inputMode="numeric" /></Field>
+            <Field label="Payment due date (optional)"><input style={inputStyle} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
+          </>
+        )}
+        {!isEdit && (
+          <>
+            <Field label={isCard ? 'Opening balance (− if you owe)' : 'Opening balance'}><input style={inputStyle} value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0" inputMode="numeric" /></Field>
+            <Field label="Opening date"><input style={inputStyle} type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} /></Field>
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+          {isEdit && (
+            <button className="chip-btn" style={{ borderColor: 'var(--coral)', color: 'var(--coral-deep)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={remove}><Icons.trash size={15} /> Delete</button>
+          )}
+          <button className="xp-save" disabled={!canSave} style={{ flex: 1, borderRadius: 13, padding: 13, opacity: canSave ? 1 : 0.5 }} onClick={submit}>{isEdit ? 'Save' : 'Add account'}</button>
+        </div>
+        <button className="chip-btn" style={{ width: '100%', padding: 11, marginTop: 8 }} onClick={onClose}>Cancel</button>
+      </div>
+    </>
+  );
+}

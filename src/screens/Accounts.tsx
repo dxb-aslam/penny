@@ -1,10 +1,12 @@
 // Penny — Accounts screen (account creation happens in chat)
+import { useState } from 'react';
 import { CATS, accountInitials, acctMask, fmt, toAED } from '../lib/data';
 import { applyFilters, categoryBreakdown } from '../lib/ledger';
 import type { AccountGroup, CategoryId } from '../lib/types';
-import { AgentAvatar } from '../components/Avatar';
 import { CatIcon, Icons } from '../components/Icons';
 import { Bar, SectionHead } from '../components/ui';
+import { AccountForm } from '../components/AccountForm';
+import type { AccountFormState } from '../components/AccountForm';
 import { useApp } from '../state/AppContext';
 
 const GROUPS: [AccountGroup, string][] = [
@@ -18,6 +20,7 @@ export function AccountsScreen() {
   const cur = app.currency;
   const accounts = app.accounts;
   const net = accounts.reduce((s, a) => s + toAED(a), 0);
+  const [form, setForm] = useState<AccountFormState | null>(null);
   // Real spend-by-category this month (no demo data).
   const byCategory = categoryBreakdown(applyFilters(app.txns, { preset: 'month', type: 'out' }))
     .map((c) => [c.cat, c.total] as [CategoryId, number])
@@ -47,12 +50,15 @@ export function AccountsScreen() {
         const cardUtil = cardLimit ? cardUsed / cardLimit : 0;
         return (
           <div key={gid}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '14px 20px 8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 8px', gap: 10 }}>
               <span className="eyebrow">
                 {glabel} · {list.length}
               </span>
-              <span className="amount" style={{ fontSize: 12, fontWeight: 700, color: sub < 0 ? 'var(--coral-deep)' : 'var(--muted)' }}>
-                {fmt(sub, cur)}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="amount" style={{ fontSize: 12, fontWeight: 700, color: sub < 0 ? 'var(--coral-deep)' : 'var(--muted)' }}>
+                  {fmt(sub, cur)}
+                </span>
+                <button onClick={() => setForm({ mode: 'create', group: gid })} aria-label={`Add ${glabel}`} style={{ border: 0, background: 'var(--accent-tint)', color: 'var(--accent-deep)', width: 24, height: 24, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icons.plus size={14} /></button>
               </span>
             </div>
             {gid === 'card' && cardLimit > 0 && (
@@ -127,15 +133,12 @@ export function AccountsScreen() {
         );
       })}
 
-      <div style={{ padding: '14px 20px 0' }}>
-        <div className="ai-note sage" style={{ cursor: 'pointer' }} onClick={app.openChat}>
-          <span style={{ flexShrink: 0, marginTop: 1 }}>
-            <AgentAvatar size={16} />
-          </span>
-          <span>
-            <b>Add accounts in chat.</b> Try “add my new Liv savings account, 2500 aed” — I'll draft it, you confirm.
-          </span>
-        </div>
+      <div style={{ padding: '16px 16px 0', display: 'flex', gap: 8 }}>
+        {GROUPS.map(([gid, glabel]) => (
+          <button key={gid} className="chip-btn" style={{ flex: 1, justifyContent: 'center', padding: '11px 0', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700 }} onClick={() => setForm({ mode: 'create', group: gid })}>
+            <Icons.plus size={14} /> {gid === 'wallet' ? 'Cash' : glabel.replace(/s$/, '')}
+          </button>
+        ))}
       </div>
 
       {byCategory.length > 0 && (
@@ -158,6 +161,7 @@ export function AccountsScreen() {
         </>
       )}
       <div style={{ height: 8 }} />
+      <AccountForm state={form} onClose={() => setForm(null)} />
     </div>
   );
 }

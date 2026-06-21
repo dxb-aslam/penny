@@ -5,8 +5,7 @@ import { categoryBreakdown } from '../lib/ledger';
 import type { CurrencyCode } from '../lib/types';
 import { CatIcon, Icons } from '../components/Icons';
 import { Bar, TxnRow } from '../components/ui';
-import { EditSheet } from '../components/EditSheet';
-import type { Field, FormValues } from '../components/EditSheet';
+import { AccountForm } from '../components/AccountForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Account, Txn } from '../lib/types';
 import { useApp } from '../state/AppContext';
@@ -89,16 +88,7 @@ export function AccountView() {
   const { accountViewId, currency } = app;
   const account = app.accounts.find((a) => a.id === accountViewId) || null;
   const [editing, setEditing] = useState(false);
-  const [pendingBal, setPendingBal] = useState<{ values: FormValues; oldBal: number; newBal: number } | null>(null);
   const isCard = (account?.group || 'bank') === 'card';
-  const fields: Field[] = [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'currency', label: 'Currency', type: 'select', options: (['AED', 'USD', 'EUR', 'INR'] as CurrencyCode[]).map((c) => ({ value: c, label: c })) },
-    { key: 'last4', label: 'Last 4 digits', type: 'text', placeholder: '—' },
-    { key: 'balance', label: 'Balance', type: 'number' },
-    ...(isCard ? [{ key: 'creditLimit', label: 'Credit limit', type: 'number' as const, placeholder: '—' }, { key: 'dueDate', label: 'Payment due', type: 'date' as const }] : []),
-    { key: 'note', label: 'Note', type: 'text', placeholder: 'optional' },
-  ];
   const acctChanges = account ? app.acctHistoryFor(account.id) : [];
 
   const acctTxns = account ? app.txns.filter((t) => txnTouchesAccount(t, account.id)) : [];
@@ -115,34 +105,6 @@ export function AccountView() {
   const open = !!accountViewId && !!account;
   const used = account?.creditLimit ? Math.max(0, -account.balance) : 0;
   const util = account?.creditLimit ? Math.min(1, used / account.creditLimit) : 0;
-
-  // Apply an account edit. Credit-limit & due-date changes are auto-logged by
-  // updateAccount; a balance change can optionally post the difference as a txn.
-  const applySave = (v: FormValues, postAdjustment: boolean) => {
-    if (!account) return;
-    const newBal = v.balance == null || v.balance === '' ? account.balance : Number(v.balance);
-    app.updateAccount(account.id, {
-      name: v.name ? String(v.name) : account.name,
-      currency: v.currency ? (String(v.currency) as CurrencyCode) : account.currency,
-      last4: v.last4 ? String(v.last4).replace(/\D/g, '').slice(0, 4) : null,
-      balance: newBal,
-      creditLimit: v.creditLimit == null || v.creditLimit === '' ? account.creditLimit : Math.abs(Number(v.creditLimit)),
-      dueDate: isCard ? (v.dueDate ? String(v.dueDate) : null) : account.dueDate,
-      note: v.note ? String(v.note) : account.note,
-    });
-    if (postAdjustment) {
-      const delta = newBal - account.balance;
-      app.addTxn({ merchant: 'Balance adjustment', cat: delta >= 0 ? 'income' : 'other', amount: Math.abs(delta), account: account.id, nec: 5, income: delta >= 0, byPenny: false });
-    }
-    app.toast('Account updated');
-  };
-  const onSave = (v: FormValues) => {
-    if (!account) return;
-    const newBal = v.balance == null || v.balance === '' ? account.balance : Number(v.balance);
-    setEditing(false);
-    if (Math.abs(newBal - account.balance) >= 0.005) setPendingBal({ values: v, oldBal: account.balance, newBal });
-    else applySave(v, false);
-  };
 
   return (
     <div className={`ledger-overlay${open ? ' open' : ''}`}>
@@ -274,14 +236,10 @@ export function AccountView() {
             )}
           </div>
 
-          <EditSheet
-            open={editing}
-            title="Edit account"
-            fields={fields}
-            initial={{ name: account.name, currency: account.currency || currency, last4: account.last4 || '', balance: account.balance, creditLimit: account.creditLimit, dueDate: account.dueDate || '', note: account.note || '' }}
-            onSave={onSave}
+          <AccountForm
+            state={editing ? { mode: 'edit', account } : null}
             onClose={() => setEditing(false)}
-            onDelete={() => { setEditing(false); setConfirmDel(true); }}
+            onDelete={() => setConfirmDel(true)}
           />
 
           <ConfirmDialog
@@ -298,18 +256,6 @@ export function AccountView() {
             currency={currency}
             onClose={() => setTransferring(false)}
             onSubmit={(to, amt, charge, note) => { app.addTransfer(account.id, to, amt, note, charge); app.toast(charge ? 'Transfer + charge logged' : 'Transfer logged'); setTransferring(false); }}
-          />
-
-          <ConfirmDialog
-            open={!!pendingBal}
-            opts={pendingBal ? {
-              title: 'Balance changed',
-              confirmLabel: 'Post the difference',
-              cancelLabel: 'Just update',
-              message: <>Balance {pendingBal.newBal >= pendingBal.oldBal ? 'increased' : 'decreased'} from <b>{fmt(pendingBal.oldBal, account.currency || currency)}</b> to <b>{fmt(pendingBal.newBal, account.currency || currency)}</b>. Log the {pendingBal.newBal >= pendingBal.oldBal ? 'increase' : 'decrease'} of <b>{fmt(Math.abs(pendingBal.newBal - pendingBal.oldBal), account.currency || currency)}</b> as an adjustment transaction so your history stays accurate?</>,
-            } : null}
-            onConfirm={() => { if (pendingBal) applySave(pendingBal.values, true); setPendingBal(null); }}
-            onCancel={() => { if (pendingBal) applySave(pendingBal.values, false); setPendingBal(null); }}
           />
         </>
       )}
