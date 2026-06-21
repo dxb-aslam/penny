@@ -65,6 +65,7 @@ export function ManualEntry() {
   const [toAccount, setToAccount] = useState(app.accounts[1]?.id || '');
   const [nec, setNec] = useState(5);
   const [kind, setKind] = useState<'expense' | 'income' | 'transfer'>('expense');
+  const [backdate, setBackdate] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [tag, setTag] = useState<'' | TxnTag>('');
   const [attrOn, setAttrOn] = useState(false);
@@ -73,7 +74,7 @@ export function ManualEntry() {
   const [seed, setSeed] = useState(open);
   if (open !== seed) {
     setSeed(open);
-    if (open) { setCalc({ acc: null, op: null, buf: '' }); setMerchant(''); setCat('food'); setAccount(app.accounts[0]?.id || ''); setToAccount(app.accounts[1]?.id || ''); setNec(5); setKind('expense'); setDate(new Date().toISOString().slice(0, 10)); setTag(''); setAttrOn(false); setAttrMode('company'); setWho(''); }
+    if (open) { setCalc({ acc: null, op: null, buf: '' }); setMerchant(''); setCat('food'); setAccount(app.accounts[0]?.id || ''); setToAccount(app.accounts[1]?.id || ''); setNec(5); setKind('expense'); setBackdate(false); setDate(new Date().toISOString().slice(0, 10)); setTag(''); setAttrOn(false); setAttrMode('company'); setWho(''); }
   }
 
   const income = kind === 'income';
@@ -81,10 +82,11 @@ export function ManualEntry() {
   const amount = calcValue(calc);
   const save = () => {
     if (amount <= 0) { app.toast('Enter an amount'); return; }
-    const ts = Date.parse(date) || undefined; // NaN → undefined → addTxn defaults to now
+    // Only backdate when the toggle is on; otherwise log at "now".
+    const ts = backdate ? (Date.parse(date) || undefined) : undefined;
     if (isTransfer) {
       if (!account || !toAccount || account === toAccount) { app.toast('Pick two different accounts'); return; }
-      app.addTransfer(account, toAccount, amount, merchant.trim() || undefined);
+      app.addTransfer(account, toAccount, amount, merchant.trim() || undefined, undefined, ts);
       app.toast('Transfer logged');
     } else {
       app.addTxn({
@@ -154,9 +156,17 @@ export function ManualEntry() {
         <div style={{ padding: '8px 16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input className="es-input" style={{ width: 'auto', textAlign: 'left' }} placeholder={isTransfer ? 'Note (optional)' : income ? 'Source (e.g. Salary)' : 'Merchant'} value={merchant} onChange={(e) => setMerchant(e.target.value)} />
 
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 6 }}>Date</div>
-            <input className="es-input" type="date" style={{ width: 'auto', textAlign: 'left' }} value={date} onChange={(e) => setDate(e.target.value)} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setBackdate((v) => !v)}
+              className="chip-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', ...(backdate ? { background: 'var(--accent-tint)', borderColor: 'var(--accent)', color: 'var(--accent-deep)' } : {}) }}
+            >
+              <Icons.calendar size={14} /> {backdate ? 'Backdated' : 'Today · backdate'}
+            </button>
+            {backdate && (
+              <input className="es-input" type="date" style={{ width: 'auto', textAlign: 'left', flex: 1, minWidth: 150 }} value={date} onChange={(e) => setDate(e.target.value)} />
+            )}
           </div>
 
           {kind === 'expense' && (

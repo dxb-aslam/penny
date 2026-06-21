@@ -62,7 +62,7 @@ export interface NewTxn {
 export interface AppApi {
   txns: Txn[];
   addTxn: (x: NewTxn) => string;
-  addTransfer: (from: string, to: string, amount: number, note?: string, charge?: number) => void;
+  addTransfer: (from: string, to: string, amount: number, note?: string, charge?: number, ts?: number) => void;
   updateTxn: (id: string, changes: Partial<Txn>) => void;
   removeTxn: (id: string) => void;
   // edit a transaction from any list (Activity, ledger, account view)
@@ -330,18 +330,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     return id;
   }, [showToast, currency]);
-  const addTransfer = useCallback((from: string, to: string, amount: number, note?: string, charge?: number) => {
+  const addTransfer = useCallback((from: string, to: string, amount: number, note?: string, charge?: number, ts?: number) => {
     if (!from || !to || from === to || !(amount > 0)) return;
     const savId = LS.read<string | null>('savingsAccountId', null);
     if (savId && from === savId) showToast(`⚠️ ${fmt(amount, currency)} moved out of savings`);
+    const when = ts ?? Date.now();
     setUserTxns((cur) => {
       const id = 'u' + Date.now();
-      const txn: Txn = { id, ts: Date.now(), merchant: note || 'Transfer', cat: 'other', amount, account: from, counterAccount: to, transfer: true, nec: 5, byPenny: false };
+      const txn: Txn = { id, ts: when, merchant: note || 'Transfer', cat: 'other', amount, account: from, counterAccount: to, transfer: true, nec: 5, byPenny: false };
       const list = [txn, ...cur];
       // Bank/processing charge (e.g. ~1.05% on a credit-card payment) — its own
       // row on the paying account, linked to the transfer for traceability.
       if (charge && charge > 0) {
-        list.unshift({ id: 'uf' + Date.now(), ts: Date.now() + 1, merchant: 'Transfer charge', cat: 'bills', amount: charge, account: from, nec: 5, tag: 'fee', linkedTo: id, byPenny: false });
+        list.unshift({ id: 'uf' + Date.now(), ts: when + 1, merchant: 'Transfer charge', cat: 'bills', amount: charge, account: from, nec: 5, tag: 'fee', linkedTo: id, byPenny: false });
       }
       LS.write('userTxns', list);
       return list;
