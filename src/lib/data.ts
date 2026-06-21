@@ -103,20 +103,9 @@ export const CURRENCIES: Record<CurrencyCode, Currency> = {
   INR: { sym: '₹', rate: 22.76, dp: 0 },
 };
 
-export const ACCOUNTS: Account[] = [
-  { id: 'fab', name: 'FAB Current', group: 'bank', last4: '3014', balance: 14620, bg: 'linear-gradient(135deg, #2E3A2A, #46613A)', fg: '#EDEFE2', note: 'Salary account' },
-  { id: 'fabsave', name: 'FAB Savings', group: 'bank', last4: '8861', balance: 28400, bg: 'linear-gradient(135deg, #3A4A33, #5F7F50)', fg: '#EDEFE2', note: 'Emergency fund' },
-  { id: 'enbdcur', name: 'ENBD Current', group: 'bank', last4: '5527', balance: 3320, bg: 'linear-gradient(135deg, #4A3A2A, #8A6A3C)', fg: '#F2EBDB', note: 'Joint expenses' },
-  { id: 'wio', name: 'Wio Personal', group: 'bank', last4: '9943', balance: 5150, bg: 'linear-gradient(135deg, #3D4B57, #5C7A8A)', fg: '#E7F0F2', note: 'Spending pots' },
-  { id: 'neo', name: 'Mashreq Neo', group: 'bank', last4: '2208', balance: 1875, bg: 'linear-gradient(135deg, #51424F, #7A5E76)', fg: '#F0E8EF', note: 'Old salary acct' },
-  { id: 'enbd', name: 'ENBD Credit', group: 'card', last4: '7812', balance: -3185, creditLimit: 15000, dueDate: '2026-06-24', bg: 'linear-gradient(135deg, #5C3A28, #A8793C)', fg: '#F5EDDC', note: 'Due in 9 days' },
-  { id: 'fabcard', name: 'FAB Cashback', group: 'card', last4: '4406', balance: -1240, creditLimit: 10000, bg: 'linear-gradient(135deg, #2E2A21, #5C554A)', fg: '#EFE8D8', note: '5% groceries' },
-  { id: 'citi', name: 'Citi Premier', group: 'card', last4: '1175', balance: -2210, creditLimit: 20000, bg: 'linear-gradient(135deg, #34404E, #4E5E74)', fg: '#E5EBF2', note: 'Miles card' },
-  { id: 'revolut', name: 'Revolut', group: 'card', last4: '0233', balance: 1240, currency: 'USD', bg: 'linear-gradient(135deg, #3D4B57, #4E7A8A)', fg: '#E7F0F2', note: 'Travel + USD' },
-  { id: 'careem', name: 'Careem Pay', group: 'wallet', last4: null, balance: 145, bg: 'linear-gradient(135deg, #44523C, #6B8A5A)', fg: '#EDF2E2', note: 'Rides + refunds' },
-  { id: 'emoney', name: 'e& money', group: 'wallet', last4: null, balance: 89, bg: 'linear-gradient(135deg, #6B4A35, #B0744A)', fg: '#F5EBDD', note: 'Bills wallet' },
-  { id: 'cash', name: 'Cash', group: 'wallet', last4: null, balance: 410, bg: 'linear-gradient(135deg, #EFE8D8, #DCD3C0)', fg: '#4A4438', note: 'Wallet' },
-];
+// No demo seed data — Penny always starts empty; the user adds their own
+// accounts (with an opening-balance entry) and logs live transactions.
+export const ACCOUNTS: Account[] = [];
 
 export const USER_ACCT_BGS: [string, string][] = [
   ['linear-gradient(135deg, #3F4A3A, #6B8A5A)', '#EDF2E2'],
@@ -124,47 +113,13 @@ export const USER_ACCT_BGS: [string, string][] = [
   ['linear-gradient(135deg, #5A3A30, #D96845)', '#F8E9E2'],
 ];
 
-// d = days ago. All amounts AED.
-const SEED_TXNS: Txn[] = [
-  { id: 't1', d: 0, ts: 0, merchant: 'Karak House', cat: 'food', amount: 12, account: 'cash', nec: 5, items: [{ n: 'Karak chai ×2', a: 6 }, { n: 'Veg samosa', a: 6 }] },
-  { id: 't2', d: 0, ts: 0, merchant: 'Careem', cat: 'transport', amount: 23.5, account: 'enbd', nec: 8 },
-  { id: 't3', d: 0, ts: 0, merchant: 'Spinneys', cat: 'groceries', amount: 86.4, account: 'fab', nec: 8, items: [{ n: 'Produce + dairy', a: 64.4 }, { n: 'Ginger ale 6-pk', a: 22 }] },
-  { id: 't4', d: 1, ts: 0, merchant: 'Netflix', cat: 'subs', amount: 39, account: 'enbd', nec: 4, recurring: true },
-  { id: 't5', d: 1, ts: 0, merchant: 'ADNOC', cat: 'transport', amount: 120, account: 'fab', nec: 9 },
-  { id: 't6', d: 1, ts: 0, merchant: 'Shake Shack', cat: 'food', amount: 67, account: 'enbd', nec: 3 },
-  { id: 't7', d: 2, ts: 0, merchant: 'DEWA', cat: 'bills', amount: 412, account: 'fab', nec: 10, recurring: true },
-  { id: 't8', d: 2, ts: 0, merchant: 'Caribou Coffee', cat: 'food', amount: 28, account: 'enbd', nec: 4 },
-  { id: 't9', d: 3, ts: 0, merchant: 'Salary — Meridian LLC', cat: 'income', amount: 18500, account: 'fab', nec: 10, income: true },
-  { id: 't10', d: 3, ts: 0, merchant: 'Rent — Al Barsha apt', cat: 'home', amount: 4200, account: 'fab', nec: 10, recurring: true },
-  { id: 't11', d: 4, ts: 0, merchant: 'Carrefour', cat: 'groceries', amount: 214.8, account: 'fab', nec: 8 },
-  { id: 't12', d: 5, ts: 0, merchant: 'Noon.com', cat: 'shopping', amount: 159, account: 'enbd', nec: 4 },
-  { id: 't13', d: 6, ts: 0, merchant: 'Fitness First', cat: 'health', amount: 299, account: 'enbd', nec: 6, recurring: true },
-  { id: 't14', d: 6, ts: 0, merchant: 'Caribou Coffee', cat: 'food', amount: 31, account: 'enbd', nec: 4 },
-];
+const SEED_TXNS: Txn[] = [];
 
-export const EMIS: Emi[] = [
-  { id: 'car', name: 'Car loan — Nissan Kicks', lender: 'FAB Auto', monthly: 1450, principal: 68000, remaining: 41300, months: 48, monthsLeft: 29, rate: 3.19, interestMo: 181 },
-  { id: 'phone', name: 'iPhone 17 Pro', lender: 'ENBD installments', monthly: 379, principal: 4549, remaining: 2274, months: 12, monthsLeft: 6, rate: 0, interestMo: 0 },
-  { id: 'sofa', name: 'Living room furniture', lender: 'Tabby ×4', monthly: 620, principal: 2480, remaining: 1240, months: 4, monthsLeft: 2, rate: 0, interestMo: 0 },
-];
+export const EMIS: Emi[] = [];
 
-export const SUBS: Sub[] = [
-  { id: 'rent', name: 'Rent — Al Barsha', amount: 4200, every: 'month', nextIn: 27, cat: 'home', essential: true },
-  { id: 'netflix', name: 'Netflix Premium', amount: 39, every: 'month', nextIn: 29, cat: 'subs', lastUsed: 2 },
-  { id: 'spotify', name: 'Spotify', amount: 21.99, every: 'month', nextIn: 11, cat: 'subs', lastUsed: 0 },
-  { id: 'icloud', name: 'iCloud+ 200GB', amount: 11.99, every: 'month', nextIn: 17, cat: 'subs', lastUsed: 0 },
-  { id: 'gym', name: 'Fitness First', amount: 299, every: 'month', nextIn: 24, cat: 'health', lastUsed: 26, flag: "You haven't checked in for 26 days. That's AED 299/mo idle." },
-  { id: 'anghami', name: 'Anghami Plus', amount: 19.99, every: 'month', nextIn: 6, cat: 'subs', lastUsed: 47, flag: 'Unused for 47 days — and it overlaps with Spotify.' },
-];
+export const SUBS: Sub[] = [];
 
-export const GROCERY: GroceryItem[] = [
-  { id: 'g1', name: 'Milk (full fat, 2L)', qty: '2' },
-  { id: 'g2', name: 'Eggs', qty: '30 pk' },
-  { id: 'g3', name: 'Tomatoes', qty: '1 kg' },
-  { id: 'g4', name: 'Olive oil', qty: '1L', note: 'You bought 1L on May 31 — pantry is likely stocked. Skip this trip?', noteKind: 'skip' },
-  { id: 'g5', name: 'Chicken breast', qty: '1 kg' },
-  { id: 'g6', name: 'Ginger ale', qty: '6-pk', note: '3rd time this month — AED 66 total on soda. Want me to watch this?', noteKind: 'watch' },
-];
+export const GROCERY: GroceryItem[] = [];
 
 export const INCOME_MO = 18500;
 export const BUDGET_MO = 9000;
@@ -278,6 +233,29 @@ export const seedTxns: Txn[] = SEED_TXNS.map((t) => ({ ...t, ts: todayAt(t.d ?? 
  * context, a transfer is neutral (shown as an internal move). Non-transfers are
  * "in" when income, else "out".
  */
+/** Signed balance an account derives from its transactions (incl. its opening entry). */
+export function accountBalanceFromTxns(id: string, txns: Txn[]): number {
+  let bal = 0;
+  for (const t of txns) {
+    if (t.transfer) {
+      if (t.counterAccount === id) bal += t.amount;
+      else if (t.account === id) bal -= t.amount;
+    } else if (t.account === id) {
+      bal += t.income ? t.amount : -t.amount;
+    }
+  }
+  return bal;
+}
+
+/** All transactions merged from storage (user + seed − removed, with overrides). */
+export function allTxns(): Txn[] {
+  const user = LS.read<Txn[]>('userTxns', []);
+  const overrides = LS.read<Record<string, Partial<Txn>>>('txnOverrides', {});
+  const removed = new Set(LS.read<string[]>('removedTxns', []));
+  const seed = demoOff() ? [] : seedTxns;
+  return [...user, ...seed].filter((t) => !removed.has(t.id)).map((t) => (overrides[t.id] ? { ...t, ...overrides[t.id] } : t));
+}
+
 export function txnDir(t: Txn, accountId?: string): 'in' | 'out' | 'transfer' {
   if (t.transfer) {
     if (accountId && t.counterAccount === accountId) return 'in';
@@ -313,9 +291,14 @@ export function allAccounts(): Account[] {
   const removed = new Set(LS.read<string[]>('removedAccounts', []));
   const seed = demoOff() ? [] : ACCOUNTS;
   const base = [...seed, ...LS.read<Account[]>('userAccounts', [])];
+  const txns = allTxns();
   return base
     .filter((a) => !removed.has(a.id))
-    .map((a) => (overrides[a.id] ? { ...a, ...overrides[a.id] } : a));
+    .map((a) => {
+      const merged = overrides[a.id] ? { ...a, ...overrides[a.id] } : a;
+      // Balance is DERIVED from transactions (opening entry + ins − outs), never stored.
+      return { ...merged, balance: accountBalanceFromTxns(a.id, txns) };
+    });
 }
 
 export function findAccount(id: string): Account | undefined {

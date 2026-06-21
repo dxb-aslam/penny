@@ -6,6 +6,7 @@ import {
   LS,
   USER_ACCT_BGS,
   allAccounts,
+  accountBalanceFromTxns,
   demoOff,
   fmt,
   allEmis,
@@ -74,7 +75,7 @@ export interface AppApi {
   profile: Profile;
   updateProfile: (changes: Partial<Profile>) => void;
   accounts: Account[];
-  addAccount: (a: ParsedAccount) => void;
+  addAccount: (a: ParsedAccount & { openingDate?: string }) => void;
   updateAccount: (id: string, changes: Partial<Account>) => void;
   removeAccount: (id: string) => void;
   grocery: GroceryItem[];
@@ -379,17 +380,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // accounts (seed + Penny-created, persisted). acctVersion cache-busts the localStorage read.
+  // accounts (Penny-created, persisted). acctVersion cache-busts the localStorage read.
   const [acctVersion, setAcctVersion] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const accounts = useMemo(() => allAccounts(), [acctVersion]);
-  const addAccount = useCallback((a: ParsedAccount) => {
+  // Balance is DERIVED from txns, so re-derive whenever txns change (e.g. a delete).
+  const accounts = useMemo(
+    () => allAccounts().map((a) => ({ ...a, balance: accountBalanceFromTxns(a.id, txns) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [acctVersion, txns],
+  );
+  const addAccount = useCallback((a: ParsedAccount & { openingDate?: string }) => {
     const list = LS.read<Account[]>('userAccounts', []);
     const [bg, fg] = USER_ACCT_BGS[list.length % USER_ACCT_BGS.length];
-    LS.write('userAccounts', [
-      ...list,
-      { id: 'ua' + Date.now(), last4: null, note: 'Added via Penny', bg, fg, ...a },
-    ]);
+    const id = 'ua' + Date.now();
+    const { openingDate, balance, ...rest } = a;
+    // Balance is derived from txns, so the account stores 0 and we post an opening entry.
+    LS.write('userAccounts', [...list, { id, last4: null, note: '', bg, fg, ...rest, balance: 0 }]);
+    const opening = Number(balance) || 0;
+    if (opening !== 0) {
+      const parsed = openingDate ? Date.parse(openingDate) : NaN;
+      const ts = isNaN(parsed) ? Date.now() : parsed;
+      const otx: Txn = { id: 'uo' + Date.now(), ts, merchant: 'Opening balance', cat: opening >= 0 ? 'income' : 'other', amount: Math.abs(opening), account: id, nec: 5, income: opening >= 0, byPenny: false };
+      setUserTxns((cur) => { const next = [otx, ...cur]; LS.write('userTxns', next); return next; });
+    }
     setAcctVersion((v) => v + 1);
   }, []);
   const [acctHistory, setAcctHistory] = useState<AccountChange[]>(() => LS.read<AccountChange[]>('acctHistory', []));
@@ -425,6 +437,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const removed = LS.read<string[]>('removedAccounts', []);
       if (!removed.includes(id)) LS.write('removedAccounts', [...removed, id]);
     }
+    // Remove the account's own transactions too (incl. its opening entry); for any
+    // transfers touching it, just detach the gone side so the other account is unaffected.
+    setUserTxns((cur) => {
+      const next = cur
+        .filter((t) => !(t.account === id && !t.transfer))
+        .filter((t) => !(t.transfer && t.account === id && t.counterAccount === id))
+        .map((t) => (t.transfer && t.account === id ? { ...t, account: '' } : t.transfer && t.counterAccount === id ? { ...t, counterAccount: '' } : t));
+      LS.write('userTxns', next);
+      return next;
+    });
     setAcctVersion((v) => v + 1);
   }, []);
 

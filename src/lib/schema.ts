@@ -82,18 +82,23 @@ const accountSpec: TableSpec<Account> = {
     { key: 'name', label: 'Name', type: 'text', placeholder: 'e.g. Liv Savings' },
     { key: 'group', label: 'Type', type: 'select', options: GROUP_OPTS },
     { key: 'currency', label: 'Currency', type: 'select', options: CURRENCY_OPTS },
-    { key: 'balance', label: 'Balance', type: 'number' },
+    // Opening balance is posted as a dated entry — backdate it via opening date.
+    // (On edit these stay blank; the balance is derived from transactions.)
+    { key: 'balance', label: 'Opening balance (new account)', type: 'number' },
+    { key: 'openingDate', label: 'Opening date', type: 'date' },
     { key: 'creditLimit', label: 'Credit limit (cards)', type: 'number' },
     { key: 'dueDate', label: 'Payment due (cards)', type: 'date' },
     { key: 'last4', label: 'Last 4 digits', type: 'text', placeholder: '0000' },
   ],
   primary: (r) => r.name + (acctMask(r) ? ' ' + acctMask(r) : ''),
   secondary: (r, app) => `${r.group} · ${fmt(r.balance, app.currency)}`,
-  toForm: (r) => ({ name: r.name, group: r.group, currency: r.currency || 'AED', balance: r.balance, creditLimit: r.creditLimit, dueDate: r.dueDate || '', last4: r.last4 || '' }),
-  create: (app, v) => app.addAccount({ name: str(v.name) || 'Account', group: oneOf<AccountGroup>(v.group, GROUPS, 'bank'), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || undefined }),
-  update: (app, r, v) => app.updateAccount(r.id, { name: str(v.name), group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null }),
+  // Opening fields blank on edit — balance derives from transactions, not the form.
+  toForm: (r) => ({ name: r.name, group: r.group, currency: r.currency || 'AED', balance: '', openingDate: '', creditLimit: r.creditLimit, dueDate: r.dueDate || '', last4: r.last4 || '' }),
+  create: (app, v) => app.addAccount({ name: str(v.name) || 'Account', group: oneOf<AccountGroup>(v.group, GROUPS, 'bank'), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), balance: num(v.balance), openingDate: v.openingDate ? str(v.openingDate) : undefined, creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || undefined }),
+  // Balance is derived from transactions, so editing never sets it directly.
+  update: (app, r, v) => app.updateAccount(r.id, { name: str(v.name), group: oneOf<AccountGroup>(v.group, GROUPS, r.group), currency: oneOf<CurrencyCode>(v.currency, CURRENCIES_ALLOWED, 'AED'), creditLimit: v.creditLimit != null && v.creditLimit !== '' ? Math.abs(num(v.creditLimit)) : undefined, dueDate: v.dueDate ? str(v.dueDate) : null, last4: str(v.last4).replace(/\D/g, '').slice(0, 4) || null }),
   remove: (app, r) => app.removeAccount(r.id),
-  refCount: (app, r) => ({ count: app.txns.filter((t) => t.account === r.id).length, noun: 'transaction' }),
+  // Deleting an account also removes its transactions, so no ref-count block.
 };
 
 const txnSpec: TableSpec<Txn> = {

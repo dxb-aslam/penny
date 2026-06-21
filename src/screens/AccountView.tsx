@@ -110,6 +110,7 @@ export function AccountView() {
   const interestFees = acctTxns.filter((t) => t.tag === 'interest' || t.tag === 'fee').reduce((s, t) => s + t.amount, 0);
   const eppTotal = acctTxns.filter((t) => t.tag === 'epp').reduce((s, t) => s + t.amount, 0);
   const [transferring, setTransferring] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   const open = !!accountViewId && !!account;
   const used = account?.creditLimit ? Math.max(0, -account.balance) : 0;
@@ -280,6 +281,14 @@ export function AccountView() {
             initial={{ name: account.name, currency: account.currency || currency, last4: account.last4 || '', balance: account.balance, creditLimit: account.creditLimit, dueDate: account.dueDate || '', note: account.note || '' }}
             onSave={onSave}
             onClose={() => setEditing(false)}
+            onDelete={() => { setEditing(false); setConfirmDel(true); }}
+          />
+
+          <ConfirmDialog
+            open={confirmDel}
+            opts={{ title: 'Delete account?', danger: true, confirmLabel: 'Delete', message: <>“{account.name}” and all its transactions will be permanently removed. This can’t be undone.</> }}
+            onConfirm={() => { setConfirmDel(false); const id = account.id; app.closeAccount(); app.removeAccount(id); app.toast('Account deleted'); }}
+            onCancel={() => setConfirmDel(false)}
           />
 
           <TransferSheet

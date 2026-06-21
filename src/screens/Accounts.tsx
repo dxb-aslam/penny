@@ -1,5 +1,6 @@
 // Penny — Accounts screen (account creation happens in chat)
-import { BUDGET_MO, CATS, accountInitials, acctMask, fmt, toAED } from '../lib/data';
+import { CATS, accountInitials, acctMask, fmt, toAED } from '../lib/data';
+import { applyFilters, categoryBreakdown } from '../lib/ledger';
 import type { AccountGroup, CategoryId } from '../lib/types';
 import { AgentAvatar } from '../components/Avatar';
 import { CatIcon, Icons } from '../components/Icons';
@@ -12,20 +13,16 @@ const GROUPS: [AccountGroup, string][] = [
   ['wallet', 'Wallets & cash'],
 ];
 
-const BY_CATEGORY: [CategoryId, number][] = [
-  ['groceries', 301.2],
-  ['home', 4200],
-  ['food', 138],
-  ['transport', 143.5],
-  ['shopping', 159],
-  ['subs', 60.99],
-];
-
 export function AccountsScreen() {
   const app = useApp();
   const cur = app.currency;
   const accounts = app.accounts;
   const net = accounts.reduce((s, a) => s + toAED(a), 0);
+  // Real spend-by-category this month (no demo data).
+  const byCategory = categoryBreakdown(applyFilters(app.txns, { preset: 'month', type: 'out' }))
+    .map((c) => [c.cat, c.total] as [CategoryId, number])
+    .slice(0, 8);
+  const catMax = Math.max(1, ...byCategory.map(([, v]) => v));
 
   return (
     <div className="screen">
@@ -34,9 +31,6 @@ export function AccountsScreen() {
           <div className="eyebrow">Net across {accounts.length} accounts</div>
           <div className="amount h-display" style={{ fontSize: 32, fontWeight: 700, marginTop: 3, whiteSpace: 'nowrap' }}>
             {fmt(net, cur)}
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--sage-deep)', fontWeight: 700, marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Icons.trend size={14} /> +4.2% vs last month
           </div>
         </div>
         <button className="chip-btn accent" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }} onClick={app.openChat}>
@@ -144,21 +138,25 @@ export function AccountsScreen() {
         </div>
       </div>
 
-      <SectionHead title="This month by category" />
-      <div className="card" style={{ margin: '0 16px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 11 }}>
-        {[...BY_CATEGORY].sort((a, b) => b[1] - a[1]).map(([c, v]) => (
-          <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <CatIcon cat={c} size={16} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 600, marginBottom: 4 }}>
-                <span>{CATS[c].label}</span>
-                <span className="amount">{fmt(v, cur)}</span>
+      {byCategory.length > 0 && (
+        <>
+          <SectionHead title="This month by category" />
+          <div className="card" style={{ margin: '0 16px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {byCategory.map(([c, v]) => (
+              <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <CatIcon cat={c} size={16} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 600, marginBottom: 4 }}>
+                    <span>{CATS[c].label}</span>
+                    <span className="amount">{fmt(v, cur)}</span>
+                  </div>
+                  <Bar value={v} max={catMax} color={CATS[c].color} height={6} />
+                </div>
               </div>
-              <Bar value={v} max={BUDGET_MO < 4200 ? BUDGET_MO : 4200} color={CATS[c].color} height={6} />
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
       <div style={{ height: 8 }} />
     </div>
   );
