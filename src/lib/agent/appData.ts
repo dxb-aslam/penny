@@ -80,7 +80,19 @@ export function makeAgentData(app: AppApi): AgentData {
       try {
         switch (table) {
           case 'txn': app.updateTxn(id, cleanTxn(c)); return true;
-          case 'account': app.updateAccount(id, c); return true;
+          case 'account': {
+            // Balance is DERIVED from txns — a raw override is ignored. Reconcile a
+            // requested balance by posting a dated adjustment entry instead.
+            const c2 = { ...c };
+            if (c2.balance !== undefined) {
+              const cur = app.accounts.find((a) => a.id === id);
+              const delta = n(c2.balance) - (cur ? cur.balance : 0);
+              if (delta !== 0) app.addTxn({ merchant: 'Balance adjustment', cat: delta >= 0 ? 'income' : 'other', amount: Math.abs(delta), account: id, nec: 5, income: delta >= 0, byPenny: true });
+              delete c2.balance;
+            }
+            if (Object.keys(c2).length) app.updateAccount(id, c2);
+            return true;
+          }
           case 'sub': app.updateSub(id, c); return true;
           case 'emi': app.updateEmi(id, c); return true;
           case 'tracked_item': { if (s(c.status) === 'settled') app.settleTracked(id); else app.updateTracked(id, c); return true; }
@@ -101,6 +113,12 @@ export function makeAgentData(app: AppApi): AgentData {
           case 'tracked_item': app.removeTracked(id); return true;
           case 'category': app.removeCategory(id); return true;
           case 'credit_line': app.removeCreditLine(id); return true;
+          case 'grocery_item': {
+            const it = (app.openList?.items || []).find((g) => g.id === id) as { name?: string; n?: string } | undefined;
+            const nm = it?.name ?? it?.n;
+            if (nm) { app.removeGroceryByName(nm); return true; }
+            return false;
+          }
           default: return false;
         }
       } catch { return false; }
