@@ -86,6 +86,7 @@ export function ChatView() {
   const lastExpenseRef = useRef<string | null>(null);
   const booted = useRef(false);
   const trailStartRef = useRef(0); // index into msgs where the current open trail begins (reset on close)
+  const awaitingRef = useRef(false); // true when the agent asked a question and is waiting for the user's reply
 
   // keep a ref of the latest messages for event handlers (read outside render)
   useEffect(() => {
@@ -237,12 +238,13 @@ export function ChatView() {
     const confirm = (msg: string) => new Promise<boolean>((resolve) => setConfirmReq({ msg, resolve }));
 
     const [out] = await Promise.all([
-      runAgent({ text, trail, leanBlock: leanUserBlock(ctx), fullBlock: fullUserBlock(ctx), data, confirm }),
+      runAgent({ text, trail, leanBlock: leanUserBlock(ctx), fullBlock: fullUserBlock(ctx), data, confirm, forceFull: awaitingRef.current }),
       sleep(Math.min(plan.steps.length, 3) * stepMs),
     ]);
     clearInterval(timer);
     setTrace(null);
     setThinking(false);
+    awaitingRef.current = out.awaiting; // remember if the agent is waiting for the user's reply
 
     // Offline / parse fallback — heuristic on the message so the UI never dead-ends.
     if (!out.live) {
