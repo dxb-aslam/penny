@@ -87,7 +87,7 @@ export async function runOps(ops: Op[], data: AgentData, confirm?: ConfirmFn): P
           const value = op.agg.fn === 'count' ? rows.length : rows.reduce((s, r) => s + (Number(r[op.agg!.col || 'amount']) || 0), 0);
           out.push({ ok: true, value, rows: undefined });
         } else {
-          const limit = Math.max(1, Math.min(50, Number(where.limit) || 25));
+          const limit = Math.max(1, Math.min(200, Number(where.limit) || 30));
           out.push({ ok: true, rows: rows.slice(0, limit) });
         }
         continue;

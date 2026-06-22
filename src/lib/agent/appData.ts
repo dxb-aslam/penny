@@ -2,6 +2,7 @@
 // the executor's table ops onto the existing CRUD methods + in-memory rows.
 // (Swappable: a SQLite driver would implement the same AgentData interface.)
 import type { AppApi } from '../../state/AppContext';
+import { normGroup } from '../data';
 import type { AgentData } from './executor';
 import type { CategoryId, ExpenseItem, ParsedExpense, TrackKind } from '../types';
 
@@ -48,7 +49,7 @@ export function makeAgentData(app: AppApi): AgentData {
           return { ok: true, kind: 'expense', data: { expense, txnId } };
         }
         case 'account': {
-          app.addAccount({ name: s(o.name) || 'Account', group: (s(o.group) || 'bank') as 'bank' | 'card' | 'wallet', currency: app.currency, balance: n(o.balance), creditLimit: o.creditLimit ? Math.abs(n(o.creditLimit)) : undefined, last4: o.last4 ? s(o.last4).replace(/\D/g, '').slice(0, 4) : undefined });
+          app.addAccount({ name: s(o.name) || 'Account', group: normGroup(s(o.group)), currency: app.currency, balance: n(o.balance), creditLimit: o.creditLimit ? Math.abs(n(o.creditLimit)) : undefined, last4: o.last4 ? s(o.last4).replace(/\D/g, '').slice(0, 4) : undefined });
           return { ok: true, kind: 'account', data: { name: s(o.name) } };
         }
         case 'transfer': {
@@ -84,6 +85,7 @@ export function makeAgentData(app: AppApi): AgentData {
             // Balance is DERIVED from txns — a raw override is ignored. Reconcile a
             // requested balance by posting a dated adjustment entry instead.
             const c2 = { ...c };
+            if (c2.group !== undefined) c2.group = normGroup(s(c2.group));
             if (c2.balance !== undefined) {
               const cur = app.accounts.find((a) => a.id === id);
               const delta = n(c2.balance) - (cur ? cur.balance : 0);

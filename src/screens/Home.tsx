@@ -1,6 +1,6 @@
 // Penny — Home dashboard: budget → net summary → quick access → last 10 activity.
 import { useMemo, useState } from 'react';
-import { BUDGET_MO, LS, catLabel, catStyle, dayLabel, fmt } from '../lib/data';
+import { BUDGET_MO, LS, catLabel, catStyle, dayLabel, fmt, normGroup } from '../lib/data';
 import { categoryBreakdown } from '../lib/ledger';
 import type { Txn } from '../lib/types';
 import { Icons, CatIcon } from '../components/Icons';
@@ -38,10 +38,10 @@ export function HomeScreen() {
   const catMax = catRows[0]?.total || 1;
 
   // ---- net summary ----
-  const cashTotal = useMemo(() => app.accounts.filter((a) => a.group === 'wallet').reduce((s, a) => s + a.balance, 0), [app.accounts]);
-  const bankTotal = useMemo(() => app.accounts.filter((a) => a.group === 'bank').reduce((s, a) => s + a.balance, 0), [app.accounts]);
+  const cashTotal = useMemo(() => app.accounts.filter((a) => normGroup(a.group) === 'wallet').reduce((s, a) => s + a.balance, 0), [app.accounts]);
+  const bankTotal = useMemo(() => app.accounts.filter((a) => normGroup(a.group) === 'bank').reduce((s, a) => s + a.balance, 0), [app.accounts]);
   const credit = useMemo(() => {
-    const cards = app.accounts.filter((a) => a.group === 'card' && a.creditLimit);
+    const cards = app.accounts.filter((a) => normGroup(a.group) === 'card' && a.creditLimit);
     const limit = cards.reduce((s, a) => s + (a.creditLimit || 0), 0);
     const used = cards.reduce((s, a) => s + Math.max(0, -a.balance), 0);
     return { limit, used, pct: limit > 0 ? used / limit : 0, available: limit - used };

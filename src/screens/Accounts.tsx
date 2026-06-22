@@ -1,6 +1,6 @@
 // Penny — Accounts screen (account creation happens in chat)
 import { useState } from 'react';
-import { CATS, accountInitials, acctMask, fmt, toAED } from '../lib/data';
+import { CATS, accountInitials, acctMask, fmt, normGroup, toAED } from '../lib/data';
 import { applyFilters, categoryBreakdown } from '../lib/ledger';
 import type { AccountGroup, CategoryId } from '../lib/types';
 import { CatIcon, Icons } from '../components/Icons';
@@ -43,7 +43,7 @@ export function AccountsScreen() {
       </div>
 
       {GROUPS.map(([gid, glabel]) => {
-        const list = accounts.filter((a) => (a.group || 'bank') === gid);
+        const list = accounts.filter((a) => normGroup(a.group) === gid);
         if (!list.length) return null;
         const sub = list.reduce((s, a) => s + toAED(a), 0);
         // Cards on a shared line render grouped; the rest in the flat grid as before.

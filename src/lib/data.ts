@@ -1,6 +1,7 @@
 // Penny — seed data, categories, currency + persistence helpers (ported from prototype)
 import type {
   Account,
+  AccountGroup,
   Category,
   CategoryId,
   CategoryNode,
@@ -329,6 +330,15 @@ export function allAccounts(): Account[] {
       // Balance is DERIVED from transactions (opening entry + ins − outs), never stored.
       return { ...merged, balance: accountBalanceFromTxns(a.id, txns) };
     });
+}
+
+/** Map any free-text account type (e.g. "savings", "credit") onto one of the
+ *  three real groups, so an account is NEVER filtered out of the list/summaries. */
+export function normGroup(g?: string | null): AccountGroup {
+  const s = (g || '').toLowerCase();
+  if (/card|credit|visa|master|amex|charge/.test(s)) return 'card';
+  if (/cash|wallet|petty|paypal|wise|revolut|apple ?pay|google ?pay/.test(s)) return 'wallet';
+  return 'bank'; // bank / savings / checking / current / deposit / anything else
 }
 
 export function findAccount(id: string): Account | undefined {
