@@ -254,10 +254,23 @@ export async function leanCall(userBlock: string, text: string): Promise<LeanRes
   return extractJSON<LeanResult>(out);
 }
 
-/** Full tier (P2): autonomous agent round. Returns an envelope (ops + state). */
+/** Full tier (P2): autonomous agent round. Returns an envelope (ops + state).
+ *  Runs on Sonnet — reliable JSON + better reasoning than Haiku for the agent. */
 export async function agentCall(userBlock: string, messages: Anthropic.MessageParam[]): Promise<AgentEnvelope | null> {
-  const out = await callMessages('haiku', P2_FULL + userBlock, messages, 640, 'agent');
-  return extractJSON<AgentEnvelope>(out);
+  // Throws on a real API failure (no key / network) → caller treats as offline.
+  const out = await callMessages('sonnet', P2_FULL + userBlock, messages, 1024, 'agent');
+  const env = extractJSON<AgentEnvelope>(out);
+  if (env && (env.reply != null || (env.ops && env.ops.length) || env.state)) return env;
+  // The call SUCCEEDED but didn't come back as our envelope (e.g. a plain prose
+  // answer to a general question). Don't mislabel a working call as offline —
+  // surface the text as a normal reply and close the turn.
+  const text = (out || '').replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
+  if (text) {
+    const m = text.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const reply = m ? m[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') : (text.startsWith('{') ? '' : text);
+    if (reply) return { reply, state: 'close' };
+  }
+  return null; // genuinely empty
 }
 
 // ===================== 2-layer engine (legacy) =====================
